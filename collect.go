@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"time"
 	"flag"
+	"strconv"
 )
 
 // BasePath -- base configuration path
@@ -21,7 +22,7 @@ var BasePath = "/tmp/sds.conf.d/";
 var PollsBeforeReload = 1000;
 
 // PollInterval -- Seconds to wait between cycles
-var PollInterval = 10;
+var PollInterval int64 = 10;
 
 // DimPrefix -- prefix to add to dimensions
 var DimPrefix = "openio"
@@ -48,10 +49,11 @@ type ServiceInfo []struct {
 
 func main() {
 	nsPtr := flag.String("ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	intervalPtr := flag.Int("interval", 10, "Update every x seconds")
+	//intervalPtr := flag.Int("interval", 10, "Update every x seconds")
 	flag.Parse()
 
-	PollInterval = *intervalPtr;
+	//PollInterval = *intervalPtr;
+	PollInterval, _ = strconv.ParseInt(os.Args[1], 10, 0)
 
 	var proxyURLs = make(map[string]string)
 	var namespaces = strings.Split(*nsPtr, ":")
@@ -127,10 +129,12 @@ func createChart(chart string, desc string, title string, units string) {
 }
 
 func createDim(dim string) {
-	fmt.Printf("DIMENSION %s '' absolute\n", dim)
+	fmt.Printf("DIMENSION %s '%s' absolute\n", dim, dim)
 }
 
 func updateChart(chart string, dim string, value string) {
+	dim = strings.Replace(dim, ".", "_", -1)
+	dim = strings.Replace(dim, ":", "_", -1)
 	chart = fmt.Sprintf("%s.%s", DimPrefix, strings.Replace(chart, ".", "_", -1))
 	//dim = strings.Replace(dim, ".", "_", -1)
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
@@ -146,7 +150,7 @@ func updateChart(chart string, dim string, value string) {
 
 	//fmt.Printf("BEGIN %s %d\n", chart, Elapsed)
 	fmt.Printf("BEGIN %s\n", chart)
-	fmt.Printf("SET %s %s\n", dim, value)
+	fmt.Printf("SET %s = %s\n", dim, value)
 	fmt.Println("END")
 }
 
@@ -163,7 +167,7 @@ func updateRawxCounters(ns string, service string) {
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			updateChart(s[1], fmt.Sprintf("%s@%s", service, ns), s[2])
+			updateChart(s[1], fmt.Sprintf("%s.%s", service, ns), s[2])
 		} else if s[1] == "volume" {
 			// TODO: do something with volume?
 		}
@@ -176,7 +180,7 @@ func updateMetaxCounters(ns string, service string, proxyURL string) {
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			updateChart(s[1], fmt.Sprintf("%s@%s", service, ns), s[2])
+			updateChart(s[1], fmt.Sprintf("%s.%s", service, ns), s[2])
 		} else if s[1] == "volume" {
 			// TODO: do something with volume?
 		} else if s[1] == "gauge" {
@@ -190,7 +194,7 @@ func updateScore(proxyURL string, ns string, serviceType string) ServiceInfo {
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, serviceType)
 	json.Unmarshal([]byte(httpGet(url)), &serviceInfo)
 	for i := range serviceInfo {
-		updateChart("score", fmt.Sprintf("%s@%s", serviceInfo[i].Addr, ns), fmt.Sprint(serviceInfo[i].Score))
+		updateChart("score", fmt.Sprintf("%s.%s", serviceInfo[i].Addr, ns), fmt.Sprint(serviceInfo[i].Score))
 	}
 	return serviceInfo
 }
@@ -199,13 +203,13 @@ func updateServices(proxyURL string, ns string) {
 	var serviceType = getServiceTypes(proxyURL, ns)
 	for t := range serviceType  {
 		var serviceInfo = updateScore(proxyURL, ns, serviceType[t])
-		if serviceType[t] == "rawx" {
+		if false && serviceType[t] == "rawx" {
 			for sc := range serviceInfo {
 				if strings.HasPrefix(serviceInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
 					updateRawxCounters(ns, serviceInfo[sc].Addr)
 				}
 			}
-		} else if strings.HasPrefix(serviceType[t], "meta") {
+		} else if false && strings.HasPrefix(serviceType[t], "meta") {
 			for sc := range serviceInfo {
 				if strings.HasPrefix(serviceInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
 					updateMetaxCounters(ns, serviceInfo[sc].Addr, proxyURL)
