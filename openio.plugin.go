@@ -32,7 +32,7 @@ var DimPrefix = "openio"
 type ServiceType []string
 
 // Charts -- list of already created charts with the dimensions
-var Charts = make(map[string][]string)
+var Charts = make(map[string]map[string]bool)
 
 // Buffer -- metric buffer to be sent
 var Buffer = make(map[string][]string)
@@ -82,24 +82,6 @@ func raiseIf(err error) {
 	}
 }
 
-func keyInMap(s string, m map[string][]string) bool {
-	for k := range m {
-        if k == s {
-            return true
-        }
-    }
-    return false
-}
-
-func itemInList(s string, list []string) bool {
-    for i := range list {
-        if list[i] == s {
-            return true
-        }
-    }
-    return false
-}
-
 func httpGet(url string) string {
 	resp, err := http.Get(url);
 	raiseIf(err)
@@ -138,14 +120,14 @@ func updateChart(chart string, dim string, value string) {
 	dim = strings.Replace(dim, ":", "_", -1)
 	chart = fmt.Sprintf("%s.%s", DimPrefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
-	if !keyInMap(chart, Charts) {
+	if _, e := Charts[chart]; !e {
 		createChart(chart, "", chartTitle, "", strings.Split(chart, ".")[1])
-		Charts[chart] = make([]string, 0)
+		Charts[chart] = make(map[string]bool)
 	}
-	if !itemInList(dim, Charts[chart]) {
+	if _, e := Charts[chart][dim]; !e {
 		createChart(chart, "", chartTitle, "", strings.Split(chart, ".")[1])
 		createDim(dim)
-		Charts[chart] = append(Charts[chart], dim)
+		Charts[chart][dim] = true
 	}
 
 	Buffer[chart]=append(Buffer[chart], fmt.Sprintf("SET %s %s", dim, value))
@@ -153,7 +135,7 @@ func updateChart(chart string, dim string, value string) {
 
 func sendBuffer() {
 	for chart := range Buffer {
-		fmt.Printf("BEGIN %s %d\n", chart)
+		fmt.Printf("BEGIN %s\n", chart)
 		for _, v := range Buffer[chart] {
 			fmt.Println(v)
 		}
