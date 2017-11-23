@@ -49,8 +49,13 @@ type ServiceInfo []struct {
 }
 
 func main() {
-	PollInterval, _ = strconv.ParseInt(os.Args[1], 10, 0)
-	os.Args = append(os.Args[:1], os.Args[2:]...)
+	if len(os.Args) > 1 {
+		var err error
+		PollInterval, err = strconv.ParseInt(os.Args[1], 10, 0)
+		if err == nil {
+			os.Args = append(os.Args[:1], os.Args[2:]...)
+		}
+	}
 
 	nsPtr := flag.String("ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
 	confPtr := flag.String("conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
@@ -78,7 +83,7 @@ func main() {
 
 func raiseIf(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 }
 
@@ -148,7 +153,7 @@ func sendBuffer() {
 func getServiceTypes(proxyURL string, ns string) ServiceType {
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/info?what=types", proxyURL, ns)
 	res := ServiceType{}
-	json.Unmarshal([]byte(httpGet(url)), &res)
+	raiseIf(json.Unmarshal([]byte(httpGet(url)), &res))
 	return res
 }
 
@@ -183,7 +188,7 @@ func updateMetaxCounters(ns string, service string, proxyURL string) {
 func updateScore(proxyURL string, ns string, serviceType string) ServiceInfo {
 	serviceInfo := ServiceInfo{}
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, serviceType)
-	json.Unmarshal([]byte(httpGet(url)), &serviceInfo)
+	raiseIf(json.Unmarshal([]byte(httpGet(url)), &serviceInfo))
 	for i := range serviceInfo {
 		updateChart("score", fmt.Sprintf("%s.%s", serviceInfo[i].Addr, ns), fmt.Sprint(serviceInfo[i].Score))
 	}
