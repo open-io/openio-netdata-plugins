@@ -12,10 +12,11 @@ import (
 	"time"
 	"flag"
 	"strconv"
+	"path"
 )
 
 // BasePath -- base configuration path
-var BasePath = "/tmp/sds.conf.d/";
+var BasePath = "/etc/oio/sds.conf.d/";
 
 // PollsBeforeReload -- Number of cycles before collector is reloaded
 // Restarting the collector every now and then should help getting rid of memleaks
@@ -33,8 +34,8 @@ type ServiceType []string
 // Charts -- list of already created charts with the dimensions
 var Charts = make(map[string][]string)
 
-// Elapsed -- Time elapsed since last update
-//var Elapsed = 0
+// Buffer -- metric buffer to be sent
+var Buffer = make(map[string][]string)
 
 // ServiceInfo -- decoded service metric information
 type ServiceInfo []struct {
@@ -48,12 +49,14 @@ type ServiceInfo []struct {
 }
 
 func main() {
+	PollInterval, _ = strconv.ParseInt(os.Args[1], 10, 0)
+	os.Args = append(os.Args[:1], os.Args[2:]...)
+
 	nsPtr := flag.String("ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	//intervalPtr := flag.Int("interval", 10, "Update every x seconds")
+	confPtr := flag.String("conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
 	flag.Parse()
 
-	//PollInterval = *intervalPtr;
-	PollInterval, _ = strconv.ParseInt(os.Args[1], 10, 0)
+	BasePath = *confPtr
 
 	var proxyURLs = make(map[string]string)
 	var namespaces = strings.Split(*nsPtr, ":")
@@ -62,14 +65,12 @@ func main() {
 	}
 
 	poll := 0
-	//last := time.Now()
 
 	for poll < PollsBeforeReload {
-		// Elapsed = int(time.Now().Sub(last) / 1000)
-		// last = time.Now()
 		for ns, proxyURL := range proxyURLs {
 			updateServices(proxyURL, ns);
 		}
+		sendBuffer()
 		time.Sleep(time.Duration(PollInterval) * 1000 * time.Millisecond);
 		poll++;
 	}
@@ -109,7 +110,7 @@ func httpGet(url string) string {
 }
 
 func getProxyURL(ns string) string {
-  file, err := os.Open(BasePath + ns)
+  file, err := os.Open(path.Join(BasePath, ns))
   raiseIf(err)
   defer file.Close()
 
@@ -124,8 +125,8 @@ func getProxyURL(ns string) string {
   return ""
 }
 
-func createChart(chart string, desc string, title string, units string) {
-	fmt.Printf("CHART %s '%s' '%s' '%s'\n", chart, desc, title, units)
+func createChart(chart string, desc string, title string, units string, family string) {
+	fmt.Printf("CHART %s '%s' '%s' '%s' '%s'\n", chart, desc, title, units, family)
 }
 
 func createDim(dim string) {
@@ -136,22 +137,30 @@ func updateChart(chart string, dim string, value string) {
 	dim = strings.Replace(dim, ".", "_", -1)
 	dim = strings.Replace(dim, ":", "_", -1)
 	chart = fmt.Sprintf("%s.%s", DimPrefix, strings.Replace(chart, ".", "_", -1))
-	//dim = strings.Replace(dim, ".", "_", -1)
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
 	if !keyInMap(chart, Charts) {
-		createChart(chart, "", chartTitle, "")
+		createChart(chart, "", chartTitle, "", strings.Split(chart, ".")[1])
 		Charts[chart] = make([]string, 0)
 	}
 	if !itemInList(dim, Charts[chart]) {
-		createChart(chart, "", chartTitle, "")
+		createChart(chart, "", chartTitle, "", strings.Split(chart, ".")[1])
 		createDim(dim)
 		Charts[chart] = append(Charts[chart], dim)
 	}
 
-	//fmt.Printf("BEGIN %s %d\n", chart, Elapsed)
-	fmt.Printf("BEGIN %s\n", chart)
-	fmt.Printf("SET %s = %s\n", dim, value)
-	fmt.Println("END")
+	Buffer[chart]=append(Buffer[chart], fmt.Sprintf("SET %s %s", dim, value))
+}
+
+func sendBuffer() {
+	for chart := range Buffer {
+		fmt.Printf("BEGIN %s %d\n", chart)
+		for _, v := range Buffer[chart] {
+			fmt.Println(v)
+		}
+ 		fmt.Println("END")
+	}
+	// Send & reset the buffer after the collection
+	Buffer = make(map[string][]string)
 }
 
 func getServiceTypes(proxyURL string, ns string) ServiceType {
@@ -203,13 +212,13 @@ func updateServices(proxyURL string, ns string) {
 	var serviceType = getServiceTypes(proxyURL, ns)
 	for t := range serviceType  {
 		var serviceInfo = updateScore(proxyURL, ns, serviceType[t])
-		if false && serviceType[t] == "rawx" {
+		if serviceType[t] == "rawx" {
 			for sc := range serviceInfo {
 				if strings.HasPrefix(serviceInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
 					updateRawxCounters(ns, serviceInfo[sc].Addr)
 				}
 			}
-		} else if false && strings.HasPrefix(serviceType[t], "meta") {
+		} else if strings.HasPrefix(serviceType[t], "meta") {
 			for sc := range serviceInfo {
 				if strings.HasPrefix(serviceInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
 					updateMetaxCounters(ns, serviceInfo[sc].Addr, proxyURL)
