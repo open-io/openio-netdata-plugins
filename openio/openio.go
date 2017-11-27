@@ -47,13 +47,13 @@ func Collect(proxyURL string, ns string) {
 		if sType[t] == "rawx" {
 			for sc := range sInfo {
 				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
-					collectRawx(ns, sInfo[sc].Addr)
+					go collectRawx(ns, sInfo[sc].Addr)
 				}
 			}
 		} else if strings.HasPrefix(sType[t], "meta") {
 			for sc := range sInfo {
 				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
-					collectMetax(ns, sInfo[sc].Addr, proxyURL)
+					go collectMetax(ns, sInfo[sc].Addr, proxyURL)
 				}
 			}
 		}
@@ -78,7 +78,7 @@ func collectRawx(ns string, service string) {
 		if s[0] == "counter" {
 			netdata.Update(s[1], sID(service, ns), s[2])
 		} else if s[1] == "volume" {
-			volumeInfo(service, ns, s[2])
+			go volumeInfo(service, ns, s[2])
 		}
 	}
 }
@@ -94,7 +94,7 @@ func collectMetax(ns string, service string, proxyURL string) {
 		if s[0] == "counter" {
 			netdata.Update(s[1], sID(service, ns), s[2])
 		} else if s[1] == "volume" {
-            volumeInfo(service, ns, s[2])
+            go volumeInfo(service, ns, s[2])
 		} else if s[0] == "gauge" {
 			// TODO: do something with gauge?
 		}

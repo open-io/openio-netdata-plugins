@@ -7,12 +7,7 @@ import(
 
 // Charts -- list of already created charts with the dimensions
 var Charts = make(map[string]map[string]bool)
-
-// Buffer -- metric buffer to be sent
-var Buffer = make(map[string][]string)
-
-// DimPrefix -- prefix to add to dimensions
-var dimPrefix = "openio"
+var prefix = "openio"
 
 /*
 Update - queue a new metric value on a chart
@@ -20,7 +15,7 @@ Update - queue a new metric value on a chart
 func Update(chart string, dim string, value string) {
 	dim = strings.Replace(dim, ".", "_", -1)
 	dim = strings.Replace(dim, ":", "_", -1)
-	chart = fmt.Sprintf("%s.%s", dimPrefix, strings.Replace(chart, ".", "_", -1))
+	chart = fmt.Sprintf("%s.%s", prefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
 	if _, e := Charts[chart]; !e {
 		createChart(chart, "", chartTitle, "", strings.Split(chart, ".")[1])
@@ -31,8 +26,13 @@ func Update(chart string, dim string, value string) {
 		createDim(dim)
 		Charts[chart][dim] = true
 	}
+    send(chart, dim, value)
+}
 
-	Buffer[chart]=append(Buffer[chart], fmt.Sprintf("SET %s %s", dim, value))
+func send(chart string, dim string, value string) {
+    fmt.Printf("BEGIN %s\n", chart)
+    fmt.Printf("SET %s %s\n", dim, value)
+    fmt.Println("END")
 }
 
 func createChart(chart string, desc string, title string, units string, family string) {

@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"time"
 	"flag"
 	"strconv"
 	"oionetdata/openio"
-	"oionetdata/netdata"
 )
 
 // BasePath -- base configuration path
@@ -48,20 +46,7 @@ func main() {
 		for ns, proxyURL := range proxyURLs {
 			openio.Collect(proxyURL, ns);
 		}
-		sendBuffer()
 		time.Sleep(time.Duration(PollInterval) * 1000 * time.Millisecond);
 		poll++;
 	}
-}
-
-func sendBuffer() {
-	for chart := range netdata.Buffer {
-		fmt.Printf("BEGIN %s\n", chart)
-		for _, v := range netdata.Buffer[chart] {
-			fmt.Println(v)
-		}
- 		fmt.Println("END")
-	}
-	// Send & reset the buffer after the collection
-	netdata.Buffer = make(map[string][]string)
 }
