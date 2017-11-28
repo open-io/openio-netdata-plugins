@@ -4,13 +4,13 @@ OpenIO Plugin for Netdata
 Description
 ---
 
-This plugin collects metrics from OpenIO services. Currently reported metrics are (more to come):
+This plugin collects metrics from OpenIO services. Currently reported metrics are (more on their way):
 
-- Rawx: req_hits/req_time
-- Metax: req_hits/req_time
-- Score
+- Rawx: Request/Response info, connexion info, volume info (via statfs)
+- Metax: Request/Response info, connexion info, volume info (via statfs)
+- Score (for all scored services)
 
-Issues/enhancements are welcome!
+Suggestions are welcome!
 
 Install
 ---
@@ -19,9 +19,10 @@ Install
 - go 1.8+
 - netdata 1.7+
 
-From the cloned project:
+From inside the cloned project:
 
 ```
+$ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)
 $ go build openio.plugin.go
 $ chmod +x openio.plugin
 ```
@@ -53,3 +54,11 @@ $ systemctl restart netdata
 ```
 
 Head to the dashboard at http://[IP]:19999, and look for an openio section.
+
+TODO
+---
+
+- Tests
+- Tag services with volume information
+- Make it work with InfluxDB
+- More collectors: ZK, beanstalk, redis
