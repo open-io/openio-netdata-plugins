@@ -7,6 +7,8 @@ import (
 	"flag"
 	"strconv"
 	"oionetdata/openio"
+	"oionetdata/netdata"
+	"fmt"
 )
 
 // BasePath -- base configuration path
@@ -18,6 +20,8 @@ var PollsBeforeReload = 1000;
 
 // PollInterval -- Seconds to wait between cycles
 var PollInterval int64 = 10;
+
+var buf = make(map[string][]byte)
 
 func main() {
 	if len(os.Args) > 1 {
@@ -40,13 +44,24 @@ func main() {
 		proxyURLs[namespaces[i]] = openio.ProxyURL(BasePath, namespaces[i]);
 	}
 
+	// Send & reset the buffer after the collection
+
 	poll := 0
 
 	for poll < PollsBeforeReload {
+		c := make(chan netdata.Metric, 1e5)
 		for ns, proxyURL := range proxyURLs {
-			openio.Collect(proxyURL, ns);
+			openio.Collect(proxyURL, ns, c);
 		}
 		time.Sleep(time.Duration(PollInterval) * 1000 * time.Millisecond);
+		close(c)
+		for m := range c {
+			buf[m.Chart] = append(buf[m.Chart], fmt.Sprintf("SET %s %s\n", m.Dim, m.Value)...)
+		}
+		for c, v := range buf {
+			fmt.Printf("BEGIN %s\n%sEND\n", c, string(v))
+		}
 		poll++;
+		buf = make(map[string][]byte)
 	}
 }

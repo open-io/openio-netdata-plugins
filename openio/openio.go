@@ -40,20 +40,20 @@ func ProxyURL(basePath string, ns string) string {
 /*
 Collect - collect openio metrics
 */
-func Collect(proxyURL string, ns string) {
+func Collect(proxyURL string, ns string, c chan netdata.Metric) {
 	var sType = serviceTypes(proxyURL, ns)
 	for t := range sType  {
-		var sInfo = collectScore(proxyURL, ns, sType[t])
+		var sInfo = collectScore(proxyURL, ns, sType[t], c)
 		if sType[t] == "rawx" {
 			for sc := range sInfo {
 				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
-					go collectRawx(ns, sInfo[sc].Addr)
+					go collectRawx(ns, sInfo[sc].Addr, c)
 				}
 			}
 		} else if strings.HasPrefix(sType[t], "meta") {
 			for sc := range sInfo {
 				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
-					go collectMetax(ns, sInfo[sc].Addr, proxyURL)
+					go collectMetax(ns, sInfo[sc].Addr, proxyURL, c)
 				}
 			}
 		}
@@ -70,15 +70,15 @@ func serviceTypes(proxyURL string, ns string) serviceType {
 /*
 CollectRawx - update metrics for Rawx services
 */
-func collectRawx(ns string, service string) {
+func collectRawx(ns string, service string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/stat", service)
 	var lines = strings.Split(util.HTTPGet(url), "\n");
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], sID(service, ns), s[2])
+			netdata.Update(s[1], sID(service, ns), s[2], c)
 		} else if s[1] == "volume" {
-			go volumeInfo(service, ns, s[2])
+			go volumeInfo(service, ns, s[2], c)
 		}
 	}
 }
@@ -86,36 +86,36 @@ func collectRawx(ns string, service string) {
 /*
 CollectMetax - update metrics for M0/M1/M2 servicess
 */
-func collectMetax(ns string, service string, proxyURL string) {
+func collectMetax(ns string, service string, proxyURL string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/v3.0/forward/stats?id=%s", proxyURL, service)
 	var lines = strings.Split(util.HTTPGet(url), "\n");
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], sID(service, ns), s[2])
+			netdata.Update(s[1], sID(service, ns), s[2], c)
 		} else if s[1] == "volume" {
-            go volumeInfo(service, ns, s[2])
+            go volumeInfo(service, ns, s[2], c)
 		} else if s[0] == "gauge" {
 			// TODO: do something with gauge?
 		}
 	}
 }
 
-func volumeInfo(service string, ns string, volume string) {
+func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
     for dim, val := range util.VolumeInfo(volume) {
-        netdata.Update(dim, sID(service, ns), fmt.Sprint(val))
+        netdata.Update(dim, sID(service, ns), fmt.Sprint(val), c)
     }
 }
 
 /*
 CollectScore - collect score values on all scored services
 */
-func collectScore(proxyURL string, ns string, sType string) (serviceInfo) {
+func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metric) (serviceInfo) {
 	sInfo := serviceInfo{}
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, sType)
 	util.RaiseIf(json.Unmarshal([]byte(util.HTTPGet(url)), &sInfo))
 	for i := range sInfo {
-		netdata.Update("score", sID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score))
+		netdata.Update("score", sID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
 	}
 	return sInfo
 }
