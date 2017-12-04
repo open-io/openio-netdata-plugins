@@ -18,6 +18,12 @@ type serviceInfo []struct {
     Score int
 }
 
+var mReplacer = strings.NewReplacer(
+    ".", "_",
+    ":", "_",
+    "/", "_",
+)
+
 /*
 ProxyURL - Get URL of oioproxy from configuration
 */
@@ -103,7 +109,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
     for dim, val := range util.VolumeInfo(volume) {
-        netdata.Update(dim, sID(service, ns), fmt.Sprint(val), c)
+        netdata.Update(dim, sID(service, ns, volume), fmt.Sprint(val), c)
     }
 }
 
@@ -120,6 +126,9 @@ func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metri
 	return sInfo
 }
 
-func sID(service string, ns string) (string) {
-    return fmt.Sprintf("%s.%s", service, ns)
+func sID(service string, ns string, volume ...string) (string) {
+    if (len(volume) > 0) && (volume[0] != "") {
+        return fmt.Sprintf("%s.%s.%s" , ns, mReplacer.Replace(service), volume[0]);
+    }
+    return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service));
 }

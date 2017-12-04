@@ -23,8 +23,6 @@ type Metric struct {
 Update - queue a new metric value on a chart
 */
 func Update(chart string, dim string, value string, c chan Metric) {
-	dim = strings.Replace(dim, ".", "_", -1)
-	dim = strings.Replace(dim, ":", "_", -1)
 	chart = fmt.Sprintf("%s.%s", prefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
 	if _, e := charts[chart]; !e {

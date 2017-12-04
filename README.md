@@ -55,10 +55,93 @@ $ systemctl restart netdata
 
 Head to the dashboard at http://[IP]:19999, and look for an openio section.
 
+InfluxDB
+---
+
+> We suppose that an InfluxDB is installed on the same machine
+
+To integrate with InfluxDB, first enable the graphite backend in `/etc/netdata/netdata.conf`:
+
+```
+[backend]
+     enabled = yes
+     type = graphite
+     destination = localhost
+     prefix = netdata
+     send charts matching = openio.*
+```
+
+Then in `/etc/influxdb/influxdb.conf`, add the following to graphite > templates:
+
+```
+"netdata.*.openio.*.*.*.*.host.measurement.measurement.ns.service.volume",
+"netdata.*.openio.*.*.*.host.measurement.measurement.ns.service",
+```
+
+Restart both netdata and influxdb:
+
+```
+$ systemctl restart netdata influxdb
+```
+
+Query InfluxDB for the newly stored metrics:
+
+```
+$ curl -G 'http://localhost:8086/query?pretty=true' --data-urlencode "db=graphite" --data-urlencode "q=SELECT * from openio_byte_used limit 3"
+{
+    "results": [
+        {
+            "statement_id": 0,
+            "series": [
+                {
+                    "name": "openio_byte_used",
+                    "columns": [
+                        "time",
+                        "host",
+                        "ns",
+                        "service",
+                        "value",
+                        "volume"
+                    ],
+                    "values": [
+                        [
+                            "2017-12-04T21:38:32Z",
+                            "myhost",
+                            "OPENIO",
+                            "192_168_50_2_6001",
+                            0,
+                            "_var_lib_oio_sds_OPENIO_meta0_0"
+                        ],
+                        [
+                            "2017-12-04T21:38:32Z",
+                            "myhost",
+                            "OPENIO",
+                            "192_168_50_2_6004",
+                            0,
+                            "_var_lib_oio_sds_OPENIO_rawx_0"
+                        ],
+                        [
+                            "2017-12-04T21:38:32Z",
+                            "myhost",
+                            "OPENIO",
+                            "192_168_50_2_6002",
+                            0,
+                            "_var_lib_oio_sds_OPENIO_meta1_0"
+                        ]
+                    ]
+                }
+            ]
+        }
+    ]
+}
+```
+
+
+
 TODO
 ---
 
 - Tests
-- Tag services with volume information
-- Make it work with InfluxDB
-- More collectors: ZK, beanstalk, redis
+- ~~Tag services with volume information~~
+- ~~Make it work with InfluxDB~~
+- More collectors: ZK
