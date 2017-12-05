@@ -15,14 +15,19 @@ Suggestions are welcome!
 Install
 ---
 
-> Prerequisites:
+#### Prerequisites:
 - go 1.8+
 - netdata 1.7+
+- *optional* influxdb
+- *optional* gccgo
 
-From inside the cloned project:
+
+#### Build:
 
 ```
-$ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)
+$ git clone [this repo] go/src/oionetdata
+$ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/src
+$ cd $(pwd)/go/src/oionetdata
 $ go build openio.plugin.go
 $ chmod +x openio.plugin
 ```
@@ -32,7 +37,7 @@ Test-run the plugin (Abort with Ctrl+C):
 $ ./openio.plugin 1 --ns OPENIO
 ```
 
-Install it:
+#### Install:
 ```sh
 $ sudo cp openio.plugin /usr/lib/netdata/plugins.d/
 ```
