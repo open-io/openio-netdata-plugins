@@ -5,7 +5,11 @@ import(
     "log"
     "net/http"
     "io/ioutil"
+    "net"
+    "strings"
 )
+
+var ipList map[string]bool
 
 /*
 VolumeInfo - Get volume metrics from statfs
@@ -32,6 +36,30 @@ func HTTPGet(url string) string {
 	body, err := ioutil.ReadAll(resp.Body)
 	RaiseIf(err)
 	return string(body)
+}
+
+func getIPList() map[string]bool {
+    ipList := make(map[string]bool)
+    ifaces, err := net.InterfaceAddrs()
+    RaiseIf(err)
+    for ip := range ifaces {
+        // TODO: consider adding support for IPv6 here
+        ips := strings.Split(ifaces[ip].String(), "/")[0]
+        if net.ParseIP(ips).To4() != nil {
+            ipList[ips] = true
+        }
+    }
+    return ipList
+}
+
+// IsSameHost -- checks if a service if on the current host
+func IsSameHost(service string) (bool) {
+    if ipList == nil {
+        ipList = getIPList()
+    }
+    serviceIP := strings.Split(service, ":")[0]
+    _, ok := ipList[serviceIP];
+    return ok
 }
 
 /*

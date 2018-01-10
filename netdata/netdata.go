@@ -8,7 +8,8 @@ import(
 // Charts -- list of already created charts with the dimensions
 var charts = make(map[string]map[string]bool)
 
-var prefix = "openio"
+// Prefix -- prefix to use for metrics
+var Prefix = "openio"
 
 /*
 Metric - metric to be sent to buffer
@@ -23,7 +24,7 @@ type Metric struct {
 Update - queue a new metric value on a chart
 */
 func Update(chart string, dim string, value string, c chan Metric) {
-	chart = fmt.Sprintf("%s.%s", prefix, strings.Replace(chart, ".", "_", -1))
+	chart = fmt.Sprintf("%s.%s", Prefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
 	if _, e := charts[chart]; !e {
 		createChart(chart, "", chartTitle, "")
@@ -53,7 +54,7 @@ func getFamily(chart string) string {
         "score": "Score",
         "byte": "Capacity",
         "inodes": "Inodes",
-        "cnx": "Connexion",
+        "cnx": "Connections",
     }
 
     chart = strings.Split(chart, ".")[1]

@@ -16,6 +16,7 @@ type serviceType []string
 type serviceInfo []struct {
     Addr string
     Score int
+    Local bool
 }
 
 var mReplacer = strings.NewReplacer(
@@ -52,13 +53,13 @@ func Collect(proxyURL string, ns string, c chan netdata.Metric) {
 		var sInfo = collectScore(proxyURL, ns, sType[t], c)
 		if sType[t] == "rawx" {
 			for sc := range sInfo {
-				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
+				if (sInfo[sc].Local) {
 					go collectRawx(ns, sInfo[sc].Addr, c)
 				}
 			}
 		} else if strings.HasPrefix(sType[t], "meta") {
 			for sc := range sInfo {
-				if strings.HasPrefix(sInfo[sc].Addr, strings.Split(proxyURL, ":")[0]) {
+				if (sInfo[sc].Local) {
 					go collectMetax(ns, sInfo[sc].Addr, proxyURL, c)
 				}
 			}
@@ -121,7 +122,12 @@ func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metri
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, sType)
 	util.RaiseIf(json.Unmarshal([]byte(util.HTTPGet(url)), &sInfo))
 	for i := range sInfo {
-		netdata.Update("score", sID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+        if util.IsSameHost(sInfo[i].Addr) {
+            sInfo[i].Local = true
+            netdata.Update("score", sID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+        } else {
+            sInfo[i].Local = false
+        }
 	}
 	return sInfo
 }
