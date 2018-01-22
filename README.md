@@ -9,6 +9,7 @@ This plugin collects metrics from OpenIO services. Currently reported metrics ar
 - Rawx: Request/Response info, connexion info, volume info (via statfs)
 - Metax: Request/Response info, connexion info, volume info (via statfs)
 - Score (for all scored services)
+- Zookeeper metrics for local Zookeeper instances
 
 Suggestions are welcome!
 
@@ -16,38 +17,44 @@ Install
 ---
 
 #### Prerequisites:
-- go 1.8+
+- go 1.8+ (additional testing required for earlier versions)
 - netdata 1.7+
-- *optional* influxdb
-- *optional* gccgo
+- (*optional*) influxdb
 
 
-#### Build (static):
-
-> There is a way to build the plugin dynamically, see **Compile with shared libraries**
+#### Build:
 
 ```
 $ cd
 $ git clone [this repo] go/src/oionetdata
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
-$ go build openio.plugin.go
-$ chmod +x openio.plugin
+$ go build openio.plugin.go; go build zookeeper.plugin.go
+$ chmod +x openio.plugin zookeeper.plugin
 ```
 
-Test-run the plugin (Abort with Ctrl+C):
+Test-run the plugins (Abort with Ctrl+C):
+
+> As metrics are gathered for __local services__, there might not be any output from those plugins on the test machine (e.g. if it isn't an OpenIO node). Also make sure you have a valid OPENIO config file in `/etc/oio/sds.conf.d/OPENIO`
+
 ```sh
 $ ./openio.plugin 1 --ns OPENIO
+$ ./zookeeper.plugin 1 --ns OPENIO
 ```
 
 #### Install:
 ```sh
 $ sudo cp openio.plugin /usr/lib/netdata/plugins.d/
+$ sudo cp zookeeper.plugin /usr/lib/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
 ```ini
 [plugin:openio]
+    update every = 1
+    command options = --ns OPENIO
+
+[plugin:zookeeper]
     update every = 1
     command options = --ns OPENIO
 ```
@@ -61,7 +68,7 @@ Restart netdata:
 $ systemctl restart netdata
 ```
 
-Head to the dashboard at http://[IP]:19999, and look for an openio section.
+Head to the dashboard at http://[IP]:19999, and look for an __openio__ section.
 
 InfluxDB
 ---
@@ -145,51 +152,12 @@ $ curl -G 'http://localhost:8086/query?pretty=true' --data-urlencode "db=graphit
 }
 ```
 
-Compile with shared libraries
----
-
-It is possible to compile the binary to make use of shared libraries. However, version requirements for both GCC and go
-are not compatible with every distro. (GCC 7 + Go 1.8 required).
-
-Supported distros:
-- Fedora 26/27
-- OpenSuse Thumbleweed
-- Arch Linux
-
-Below is an example of a build under Fedora 26 (done via docker):
-
-```sh
-$ docker run -ti fedora:26 /bin/bash
-$ echo "fastestmirror=true" >> /etc/dnf/dnf.conf
-$ dnf -y update && dnf -y install golang git gcc-go
-$ cd
-$ git clone [this repo] go/src/oionetdata
-$ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
-$ cd $(pwd)/go/src/oionetdata
-$ go build openio.plugin.go
-```
-
-File details:
-
-```sh
-$ du -sh openio.plugin
-172K	openio.plugin
-
-$ ldd openio.plugin
-linux-vdso.so.1 (0x00007ffc46ef0000)
-libgo.so.11 => /lib64/libgo.so.11 (0x00007f1711432000)
-libm.so.6 => /lib64/libm.so.6 (0x00007f171111c000)
-libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00007f1710f05000)
-libc.so.6 => /lib64/libc.so.6 (0x00007f1710b30000)
-/lib64/ld-linux-x86-64.so.2 (0x00007f1712f5d000)
-libpthread.so.0 => /lib64/libpthread.so.0 (0x00007f1710911000)
-```
-
-
 TODO
 ---
 
 - Tests
 - ~~Tag services with volume information~~
 - ~~Make it work with InfluxDB~~
-- More collectors: ZK
+- ~~More collectors: ZK~~
+- Reload/Update mechanism
+- Automatic namespace detection
