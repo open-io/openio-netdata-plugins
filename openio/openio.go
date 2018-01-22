@@ -19,12 +19,6 @@ type serviceInfo []struct {
     Local bool
 }
 
-var mReplacer = strings.NewReplacer(
-    ".", "_",
-    ":", "_",
-    "/", "_",
-)
-
 /*
 ProxyURL - Get URL of oioproxy from configuration
 */
@@ -43,6 +37,31 @@ func ProxyURL(basePath string, ns string) string {
   util.RaiseIf(scanner.Err())
   return ""
 }
+
+// ZookeeperAddr -- Retrieve the address of a local ZK service from the configuration
+func ZookeeperAddr(basePath string, ns string) string {
+  file, err := os.Open(path.Join(basePath, ns))
+  util.RaiseIf(err)
+  defer file.Close()
+
+  scanner := bufio.NewScanner(file)
+  for scanner.Scan() {
+	t := scanner.Text()
+	if strings.HasPrefix(t, "zookeeper") {
+        addrs := strings.Split(strings.Split(t, "=")[1], ",")
+        for a := range(addrs) {
+            if util.IsSameHost(addrs[a]) {
+                return addrs[a]
+            }
+        }
+        return ""
+	}
+  }
+  util.RaiseIf(scanner.Err())
+  return ""
+}
+
+
 
 /*
 Collect - collect openio metrics
@@ -83,7 +102,7 @@ func collectRawx(ns string, service string, c chan netdata.Metric) {
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], sID(service, ns), s[2], c)
+			netdata.Update(s[1], util.SID(service, ns), s[2], c)
 		} else if s[1] == "volume" {
 			go volumeInfo(service, ns, s[2], c)
 		}
@@ -99,7 +118,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], sID(service, ns), s[2], c)
+			netdata.Update(s[1], util.SID(service, ns), s[2], c)
 		} else if s[1] == "volume" {
             go volumeInfo(service, ns, s[2], c)
 		} else if s[0] == "gauge" {
@@ -110,7 +129,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
     for dim, val := range util.VolumeInfo(volume) {
-        netdata.Update(dim, sID(service, ns, volume), fmt.Sprint(val), c)
+        netdata.Update(dim, util.SID(service, ns, volume), fmt.Sprint(val), c)
     }
 }
 
@@ -124,17 +143,10 @@ func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metri
 	for i := range sInfo {
         if util.IsSameHost(sInfo[i].Addr) {
             sInfo[i].Local = true
-            netdata.Update("score", sID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+            netdata.Update("score", util.SID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
         } else {
             sInfo[i].Local = false
         }
 	}
 	return sInfo
-}
-
-func sID(service string, ns string, volume ...string) (string) {
-    if (len(volume) > 0) && (volume[0] != "") {
-        return fmt.Sprintf("%s.%s.%s" , ns, mReplacer.Replace(service), volume[0]);
-    }
-    return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service));
 }

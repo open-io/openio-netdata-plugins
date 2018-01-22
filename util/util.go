@@ -7,9 +7,16 @@ import(
     "io/ioutil"
     "net"
     "strings"
+    "fmt"
 )
 
 var ipList map[string]bool
+
+var mReplacer = strings.NewReplacer(
+    ".", "_",
+    ":", "_",
+    "/", "_",
+)
 
 /*
 VolumeInfo - Get volume metrics from statfs
@@ -69,4 +76,12 @@ func RaiseIf(err error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+// SID -- Get a service ID for netdata
+func SID(service string, ns string, volume ...string) (string) {
+    if (len(volume) > 0) && (volume[0] != "") {
+        return fmt.Sprintf("%s.%s.%s" , ns, mReplacer.Replace(service), volume[0]);
+    }
+    return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service));
 }
