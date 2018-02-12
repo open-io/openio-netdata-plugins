@@ -56,6 +56,7 @@ func getFamily(chart string) string {
         "inodes": "Inodes",
         "cnx": "Connections",
         "zk": "Zookeeper",
+        "container": "Container",
     }
 
     chart = strings.Split(chart, ".")[1]

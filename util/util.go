@@ -85,3 +85,11 @@ func SID(service string, ns string, volume ...string) (string) {
     }
     return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service));
 }
+
+// AcctID -- get an ID from a ns/account/container
+func AcctID(ns string, acct string, cont ... string) (string) {
+    if (len(cont) > 0) && (cont[0] != "") {
+        return fmt.Sprintf("%s.%s.%s" , ns, mReplacer.Replace(acct), mReplacer.Replace(cont[0]));
+    }
+    return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(acct));
+}
