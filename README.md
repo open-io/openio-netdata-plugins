@@ -10,6 +10,7 @@ This plugin collects metrics from OpenIO services. Currently reported metrics ar
 - Metax: Request/Response info, connexion info, volume info (via statfs)
 - Score (for all scored services)
 - Zookeeper metrics for local Zookeeper instances
+- Account container listing
 
 Suggestions are welcome!
 
@@ -27,6 +28,7 @@ Install
 ```
 $ cd
 $ git clone [this repo] go/src/oionetdata
+$ go get github.com/go-redis/redis
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
 $ go build openio.plugin.go; go build zookeeper.plugin.go
@@ -35,17 +37,21 @@ $ chmod +x openio.plugin zookeeper.plugin
 
 Test-run the plugins (Abort with Ctrl+C):
 
-> As metrics are gathered for __local services__, there might not be any output from those plugins on the test machine (e.g. if it isn't an OpenIO node). Also make sure you have a valid OPENIO config file in `/etc/oio/sds.conf.d/OPENIO`
+> As metrics are gathered for __local services__, there might not be any output from those plugins on the test machine (e.g. if it isn't an OpenIO node). Also make sure you have a valid OPENIO config file in `/etc/oio/sds.conf.d/OPENIO`. The only exception is the __container__ plugin, which requires a local redis and a redis configuration file in `/etc/oio/sds/OPENIO/redis-X/redis.conf`.
 
 ```sh
 $ ./openio.plugin 1 --ns OPENIO
 $ ./zookeeper.plugin 1 --ns OPENIO
+$ ./container.plugin 10 --ns OPENIO
 ```
+
+Type in `./[name].plugin -h` to get all available options for each plugin
 
 #### Install:
 ```sh
 $ sudo cp openio.plugin /usr/lib/netdata/plugins.d/
 $ sudo cp zookeeper.plugin /usr/lib/netdata/plugins.d/
+$ sudo cp container.plugin /usr/lib/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
@@ -57,11 +63,15 @@ Add the following /etc/netdata/netdata.conf:
 [plugin:zookeeper]
     update every = 1
     command options = --ns OPENIO
+
+[plugin:container]
+    update every = 60
+    command options = --ns OPENIO --threshold 0 --limit 1000
 ```
 
 > Replace OPENIO with your namespace name. If you have multiple namespaces on the machine, join the names with ":" (e.g. `command options = --ns OPENIO:OPENIO2`)
 
-> This plugin searches for a valid namespace configuration in `/etc/oio/sds.conf.d`. If your configuration is stored somewhere else, specify the path with `--conf [PATH_TO_DIR]`.
+> This plugin searches for a valid namespace configuration in `/etc/oio/sds.conf.d`. If your configuration is stored somewhere else, specify the path with `--conf [PATH_TO_DIR]`. For the container plugin, point the option to `/etc/oio/sds/` (directory containing per-namespace configuration)
 
 Restart netdata:
 ```sh
@@ -159,5 +169,6 @@ TODO
 - ~~Tag services with volume information~~
 - ~~Make it work with InfluxDB~~
 - ~~More collectors: ZK~~
+- ~~More collectors: container~~
 - Reload/Update mechanism
 - Automatic namespace detection
