@@ -29,9 +29,10 @@ func main() {
 }
 
 func makeCollector(zkAddrs map[string]string,) (collect collector.Collect) {
-	return func(c chan netdata.Metric) {
+	return func(c chan netdata.Metric) error {
 		for ns, addr := range zkAddrs {
 			zookeeper.Collect(addr, ns, c);
 		}
+		return nil
 	}
 }

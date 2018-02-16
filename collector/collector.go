@@ -5,6 +5,7 @@ import (
 	"oionetdata/netdata"
 	"fmt"
     "strconv"
+	"log"
 )
 
 // PollsBeforeReload -- Number of cycles before collector is reloaded
@@ -14,7 +15,7 @@ var PollsBeforeReload = 1000;
 var buf = make(map[string][]byte)
 
 // Collect -- function to call on each collection
-type Collect func(chan netdata.Metric)
+type Collect func(chan netdata.Metric) (error)
 
 
 // ParseInterval -- parse interval from arguments
@@ -35,10 +36,23 @@ func ParseInterval(args []string) ([]string, int64) {
 // Run -- run the collector
 func Run(pollInt int64, collect Collect) {
     poll := 0
+	var cd int64 = 1
+	maxCd := pollInt * 20
 
 	for poll < PollsBeforeReload {
 		c := make(chan netdata.Metric, 1e5)
-		collect(c)
+		err := collect(c)
+		if err != nil {
+			cd += cd
+			if cd > maxCd {
+				cd = maxCd
+			}
+			log.Println("Collect function returned an error", err)
+			log.Printf("Retrying collection in %d second(s)", cd);
+			time.Sleep(time.Duration(cd) * time.Second);
+		} else {
+			cd = 1
+		}
 		time.Sleep(time.Duration(pollInt) * 1000 * time.Millisecond);
 		close(c)
 		for m := range c {

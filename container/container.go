@@ -70,24 +70,30 @@ func RedisAddr(basePath string, ns string) string {
 }
 
 // Collect -- collect container metrics
-func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.Metric) {
+func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.Metric) error {
 
     accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
-    util.RaiseIf(err)
+    if err != nil {
+        return err
+    }
 
     for _, acct := range accounts.([]interface{}) {
         if acct == "1" {
             continue
         }
         count, err := scriptGetContCount.Run(client, []string{acct.(string)}, 1).Result()
-        util.RaiseIf(err)
+        if err != nil {
+            return err
+        }
         ct := count.(int64)
         cts := strconv.FormatInt(ct, 10)
         netdata.Update("container_count", util.AcctID(ns, acct.(string)), cts, c)
         var i int64
         for i < ct {
             res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
-            util.RaiseIf(err)
+            if err != nil {
+                return err
+            }
             contObj := map[string][]int{}
             err = json.Unmarshal([]byte(res.(string)), &contObj)
             util.RaiseIf(err)
@@ -101,4 +107,5 @@ func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.M
             }
         }
     }
+    return nil
 }

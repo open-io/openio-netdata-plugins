@@ -26,9 +26,10 @@ func main() {
 }
 
 func makeCollect(proxyURLs map[string]string,) (collect collector.Collect) {
-	return func(c chan netdata.Metric) {
+	return func(c chan netdata.Metric) error {
 		for ns, proxyURL := range proxyURLs {
 			openio.Collect(proxyURL, ns, c);
 		}
+		return nil
 	}
 }

@@ -176,3 +176,7 @@ TODO
 - Reload/Update mechanism
 - Automatic namespace detection
 - Container: cache containers above threshold, separate slow/fast listing
+- Container: consider connecting to sentinel via FailoverClient
+- OpenIO: implement error handling
+- Zookeeper: implement error handling
+- Container: improve error handling
