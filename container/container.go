@@ -31,8 +31,9 @@ var scriptListCont = redis.NewScript(`
     for _, c in ipairs(cont) do
         local k = cont_pfix .. c;
         local v = tonumber(redis.call('HGET', k, 'objects'))
+        local s = tonumber(redis.call('HGET', k, 'bytes'))
         if v > tonumber(ARGV[1]) then
-            res[c] = v
+            res[c] = {v, s}
         end;
     end;
     return cjson.encode(res);
@@ -87,11 +88,12 @@ func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.M
         for i < ct {
             res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
             util.RaiseIf(err)
-            contObj := map[string]int{}
+            contObj := map[string][]int{}
             err = json.Unmarshal([]byte(res.(string)), &contObj)
             util.RaiseIf(err)
-            for cont, objCount := range contObj {
-                netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(objCount), c)
+            for cont, values := range contObj {
+                netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[0]), c)
+                netdata.Update("container_bytes", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[1]), c)
             }
             i += l
             if l == -1 {

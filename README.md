@@ -10,7 +10,7 @@ This plugin collects metrics from OpenIO services. Currently reported metrics ar
 - Metax: Request/Response info, connexion info, volume info (via statfs)
 - Score (for all scored services)
 - Zookeeper metrics for local Zookeeper instances
-- Account container listing
+- Account container listing (account container count, size and object count for containers above threshold)
 
 Suggestions are welcome!
 
@@ -100,6 +100,9 @@ To integrate with InfluxDB, first enable the graphite backend in `/etc/netdata/n
 Then in `/etc/influxdb/influxdb.conf`, add the following to graphite > templates:
 
 ```ini
+"netdata.*.openio.container_bytes.*.*.* .host.measurement.measurement.ns.account.container",
+"netdata.*.openio.container_objects.*.*.* .host.measurement.measurement.ns.account.container",
+"netdata.*.openio.container_count.*.* .host.measurement.measurement.ns.account",
 "netdata.*.openio.*.*.*.*.host.measurement.measurement.ns.service.volume",
 "netdata.*.openio.*.*.*.host.measurement.measurement.ns.service",
 ```
@@ -172,3 +175,4 @@ TODO
 - ~~More collectors: container~~
 - Reload/Update mechanism
 - Automatic namespace detection
+- Container: cache containers above threshold, separate slow/fast listing
