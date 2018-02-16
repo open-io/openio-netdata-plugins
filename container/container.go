@@ -38,7 +38,8 @@ var scriptListCont = redis.NewScript(`
     return cjson.encode(res);
 `)
 
-func redisAddr(basePath string, ns string) string {
+// RedisAddr -- get redis address
+func RedisAddr(basePath string, ns string) string {
     ip := "";
     port := "";
     p := path.Join(basePath, ns, "redis-*/redis.conf")
@@ -68,13 +69,15 @@ func redisAddr(basePath string, ns string) string {
 }
 
 // Collect -- collect container metrics
-func Collect(basePath string, ns string, l int64, t int64, c chan netdata.Metric) {
-    client := redis.NewClient(&redis.Options{Addr: redisAddr(basePath, ns),})
+func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.Metric) {
 
     accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
     util.RaiseIf(err)
 
     for _, acct := range accounts.([]interface{}) {
+        if acct == "1" {
+            continue
+        }
         count, err := scriptGetContCount.Run(client, []string{acct.(string)}, 1).Result()
         util.RaiseIf(err)
         ct := count.(int64)

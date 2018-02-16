@@ -7,6 +7,7 @@ import (
     "oionetdata/collector"
     "oionetdata/netdata"
     "oionetdata/container"
+    "github.com/go-redis/redis"
 )
 
 func main() {
@@ -25,7 +26,8 @@ func main() {
 func makeCollect(basePath string, namespaces []string, l int64, t int64) (collect collector.Collect) {
 	return func(c chan netdata.Metric) {
 		for nsi := range namespaces {
-			container.Collect(basePath, namespaces[nsi], l, t, c);
+            client := redis.NewClient(&redis.Options{Addr: container.RedisAddr(basePath, namespaces[nsi])})
+			container.Collect(client, namespaces[nsi], l, t, c);
 		}
 	}
 }
