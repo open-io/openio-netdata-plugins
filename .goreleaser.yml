@@ -33,17 +33,9 @@ release:
   name_template: "v.{{.Version}}"
 
 nfpm:
-  # You can change the name of the package.
-  # This is parsed with the Go template engine and the following variables
-  # are available:
-  # - ProjectName
-  # - Tag
-  # - Version (Git tag without `v` prefix)
-  # - Os
-  # - Arch
-  # - Arm (ARM version)
-  # - Env (environment variables)
-  # Default: `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}`
+  name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Env.RELEASE }}.{{ .Arch }}"
+  replacements:
+    amd64: x86_64
 
   vendor: OpenIO
   homepage: https://openio.io/
