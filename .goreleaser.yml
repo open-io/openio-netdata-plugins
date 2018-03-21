@@ -23,6 +23,7 @@ builds:
 
 archive:
   wrap_in_directory: false
+  name_template: "{{ .ProjectName }}-{{ .Version }}.{{ .Arch }}"
 
 release:
   github:
@@ -30,7 +31,7 @@ release:
     name: openio-netdata
   draft: true
   prerelease: true
-  name_template: "v.{{.Version}}"
+  name_template: "v{{.Version}}"
 
 nfpm:
   name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Env.RELEASE }}.{{ .Arch }}"
@@ -41,7 +42,6 @@ nfpm:
   homepage: https://openio.io/
   maintainer: Vladimir DOMBROVSKI <vladimir@openio.io>
   description: OpenIO collectors for netdata
-  license: Apache 2.0
   formats:
     - deb
     - rpm
