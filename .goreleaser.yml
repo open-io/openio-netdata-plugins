@@ -1,0 +1,58 @@
+builds:
+  - binary: openio.plugin
+    main: openio.plugin.go
+    flags: "-gccgoflags '-static'"
+    goos:
+      - linux
+    goarch:
+      - amd64
+  - binary: zookeeper.plugin
+    main: zookeeper.plugin.go
+    flags: "-gccgoflags '-static'"
+    goos:
+      - linux
+    goarch:
+      - amd64
+  - binary: container.plugin
+    main: container.plugin.go
+    flags: "-gccgoflags '-static'"
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+archive:
+  wrap_in_directory: false
+
+release:
+  github:
+    owner: vdombrovski
+    name: openio-netdata
+  draft: true
+  prerelease: true
+  name_template: "v.{{.Version}}"
+
+nfpm:
+  # You can change the name of the package.
+  # This is parsed with the Go template engine and the following variables
+  # are available:
+  # - ProjectName
+  # - Tag
+  # - Version (Git tag without `v` prefix)
+  # - Os
+  # - Arch
+  # - Arm (ARM version)
+  # - Env (environment variables)
+  # Default: `{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}`
+
+  vendor: OpenIO
+  homepage: https://openio.io/
+  maintainer: Vladimir DOMBROVSKI <vladimir@openio.io>
+  description: OpenIO collectors for netdata
+  license: Apache 2.0
+  formats:
+    - deb
+    - rpm
+  dependencies:
+    - netdata
+  bindir: /usr/lib/netdata/plugins.d/
