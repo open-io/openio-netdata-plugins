@@ -165,7 +165,7 @@ func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metri
 	for i := range sInfo {
         if util.IsSameHost(sInfo[i].Addr) {
             sInfo[i].Local = true
-            netdata.Update("score", util.SID(sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+            netdata.Update("score", util.SID(sType + "_" + sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
         } else {
             sInfo[i].Local = false
         }
