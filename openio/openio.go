@@ -7,8 +7,10 @@ import(
     "os"
     "encoding/json"
     "fmt"
+    "strconv"
     "oionetdata/util"
     "oionetdata/netdata"
+    // "log"
 )
 
 type serviceType []string
@@ -18,6 +20,10 @@ type serviceInfo []struct {
     Score int
     Local bool
 }
+
+var counter = make(map[string]int)
+// CollectInterval -- collection interval for derivatives
+var CollectInterval = 10
 
 /*
 ProxyURL - Get URL of oioproxy from configuration
@@ -61,7 +67,19 @@ func ZookeeperAddr(basePath string, ns string) string {
   return ""
 }
 
-
+func diffCounter(metric string, sid string, value string) string {
+    res := ""
+    curr, err := strconv.Atoi(value)
+    if err != nil {
+        return res
+    }
+    if prev, ok := counter[metric + sid]; ok {
+        res = strconv.Itoa((curr - prev) / CollectInterval)
+    }
+    counter[metric + sid] = curr
+    // log.Println(metric, sid, res)
+    return res
+}
 
 /*
 Collect - collect openio metrics
@@ -102,7 +120,9 @@ func collectRawx(ns string, service string, c chan netdata.Metric) {
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], util.SID(service, ns), s[2], c)
+            if diff := diffCounter(s[1], util.SID(service, ns), s[2]); diff != "" {
+                netdata.Update(s[1], util.SID(service, ns), diff, c)
+            }
 		} else if s[1] == "volume" {
 			go volumeInfo(service, ns, s[2], c)
 		}
@@ -118,7 +138,9 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
-			netdata.Update(s[1], util.SID(service, ns), s[2], c)
+            if diff := diffCounter(s[1], util.SID(service, ns), s[2]); diff != "" {
+                netdata.Update(s[1], util.SID(service, ns), diff, c)
+            }
 		} else if s[1] == "volume" {
             go volumeInfo(service, ns, s[2], c)
 		} else if s[0] == "gauge" {

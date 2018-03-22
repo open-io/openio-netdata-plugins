@@ -12,6 +12,9 @@ import(
 
 var ipList map[string]bool
 
+// ForceRemote -- force remote metric collection
+var ForceRemote = false
+
 var mReplacer = strings.NewReplacer(
     ".", "_",
     ":", "_",
@@ -61,6 +64,9 @@ func getIPList() map[string]bool {
 
 // IsSameHost -- checks if a service if on the current host
 func IsSameHost(service string) (bool) {
+    if ForceRemote {
+        return true;
+    }
     if ipList == nil {
         ipList = getIPList()
     }
