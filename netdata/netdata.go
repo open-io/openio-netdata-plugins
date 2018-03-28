@@ -3,10 +3,47 @@ package netdata
 import(
     "fmt"
     "strings"
+    "sync"
 )
 
-// Charts -- list of already created charts with the dimensions
-var charts = make(map[string]map[string]bool)
+type index struct {
+    sync.RWMutex
+    charts map[string]map[string]bool
+}
+
+func makeIndex() *index {
+    return &index{
+        charts: make(map[string]map[string]bool),
+    }
+}
+
+func (i *index) chartExists(chart string) bool {
+    i.RLock()
+    defer i.RUnlock()
+    _, e := i.charts[chart]
+    return e;
+}
+
+func (i *index) dimExists(chart string, dim string) bool {
+    i.RLock()
+    defer i.RUnlock()
+    _, e := i.charts[chart][dim]
+    return e;
+}
+
+func (i *index) addChart(chart string) {
+    i.Lock()
+    defer i.Unlock()
+    i.charts[chart] = make(map[string]bool)
+}
+
+func (i *index) addDim(chart string, dim string) {
+    i.Lock()
+    defer i.Unlock()
+    i.charts[chart][dim] = true
+}
+
+var chartIndex = makeIndex()
 
 // Prefix -- prefix to use for metrics
 var Prefix = "openio"
@@ -26,14 +63,14 @@ Update - queue a new metric value on a chart
 func Update(chart string, dim string, value string, c chan Metric) {
 	chart = fmt.Sprintf("%s.%s", Prefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
-	if _, e := charts[chart]; !e {
+	if !chartIndex.chartExists(chart) {
 		createChart(chart, "", chartTitle, "")
-		charts[chart] = make(map[string]bool)
+		chartIndex.addChart(chart)
 	}
-	if _, e := charts[chart][dim]; !e {
+	if !chartIndex.dimExists(chart, dim) {
 		createChart(chart, "", chartTitle, "")
 		createDim(dim)
-		charts[chart][dim] = true
+		chartIndex.addDim(chart, dim)
 	}
 
     c <- Metric{
