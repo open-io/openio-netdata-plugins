@@ -39,13 +39,17 @@ func VolumeInfo(volume string) (map[string]uint64) {
 /*
 HTTPGet - Wrapper for Get HTTP request
 */
-func HTTPGet(url string) string {
+func HTTPGet(url string) (string, error) {
 	resp, err := http.Get(url);
-	RaiseIf(err)
+    if err != nil {
+        return "", err
+    }
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	RaiseIf(err)
-	return string(body)
+    if err != nil {
+        return "", err
+    }
+	return string(body), nil
 }
 
 func getIPList() map[string]bool {

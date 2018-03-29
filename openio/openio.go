@@ -107,7 +107,11 @@ func Collect(proxyURL string, ns string, c chan netdata.Metric) {
 func serviceTypes(proxyURL string, ns string) serviceType {
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/info?what=types", proxyURL, ns)
 	res := serviceType{}
-	util.RaiseIf(json.Unmarshal([]byte(util.HTTPGet(url)), &res))
+
+    typesResponse, err := util.HTTPGet(url)
+    if err == nil {
+        util.RaiseIf(json.Unmarshal([]byte(typesResponse), &res))
+    }
 	return res
 }
 
@@ -116,7 +120,11 @@ CollectRawx - update metrics for Rawx services
 */
 func collectRawx(ns string, service string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/stat", service)
-	var lines = strings.Split(util.HTTPGet(url), "\n");
+    res, err := util.HTTPGet(url)
+    if err != nil {
+        return
+    }
+	var lines = strings.Split(res, "\n");
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
@@ -134,7 +142,11 @@ CollectMetax - update metrics for M0/M1/M2 servicess
 */
 func collectMetax(ns string, service string, proxyURL string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/v3.0/forward/stats?id=%s", proxyURL, service)
-	var lines = strings.Split(util.HTTPGet(url), "\n");
+    res, err := util.HTTPGet(url)
+    if err != nil {
+        return
+    }
+	var lines = strings.Split(res, "\n");
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
 		if s[0] == "counter" {
@@ -161,14 +173,17 @@ CollectScore - collect score values on all scored services
 func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metric) (serviceInfo) {
 	sInfo := serviceInfo{}
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, sType)
-	util.RaiseIf(json.Unmarshal([]byte(util.HTTPGet(url)), &sInfo))
-	for i := range sInfo {
-        if util.IsSameHost(sInfo[i].Addr) {
-            sInfo[i].Local = true
-            netdata.Update("score", util.SID(sType + "_" + sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
-        } else {
-            sInfo[i].Local = false
-        }
-	}
+    res, err := util.HTTPGet(url)
+    if err == nil {
+        util.RaiseIf(json.Unmarshal([]byte(res), &sInfo))
+    	for i := range sInfo {
+            if util.IsSameHost(sInfo[i].Addr) {
+                sInfo[i].Local = true
+                netdata.Update("score", util.SID(sType + "_" + sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+            } else {
+                sInfo[i].Local = false
+            }
+    	}
+    }
 	return sInfo
 }
