@@ -10,6 +10,7 @@ import(
     "strconv"
     "oionetdata/util"
     "oionetdata/netdata"
+    "sync"
     // "log"
 )
 
@@ -21,7 +22,33 @@ type serviceInfo []struct {
     Local bool
 }
 
-var counter = make(map[string]int)
+type cntr struct {
+    sync.RWMutex
+    counter map[string]int
+}
+
+func makeCounter() *cntr {
+    return &cntr{
+        counter: make(map[string]int),
+    }
+}
+
+func (c *cntr) setCounter(key string, value int) {
+    c.RLock()
+    defer c.RUnlock()
+    c.counter[key] = value
+}
+
+func (c *cntr) getCounter(key string) (int, bool) {
+    c.Lock()
+    defer c.Unlock()
+    v, ok := c.counter[key];
+    return v, ok
+}
+
+
+var counter = makeCounter()
+
 // CollectInterval -- collection interval for derivatives
 var CollectInterval = 10
 
@@ -73,11 +100,11 @@ func diffCounter(metric string, sid string, value string) string {
     if err != nil {
         return res
     }
-    if prev, ok := counter[metric + sid]; ok {
+
+    if prev, ok := counter.getCounter(metric + sid); ok {
         res = strconv.Itoa((curr - prev) / CollectInterval)
     }
-    counter[metric + sid] = curr
-    // log.Println(metric, sid, res)
+    counter.setCounter(metric + sid, curr)
     return res
 }
 
