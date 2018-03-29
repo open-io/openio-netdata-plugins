@@ -34,14 +34,14 @@ func makeCounter() *cntr {
 }
 
 func (c *cntr) setCounter(key string, value int) {
-    c.RLock()
-    defer c.RUnlock()
+    c.Lock()
+    defer c.Unlock()
     c.counter[key] = value
 }
 
 func (c *cntr) getCounter(key string) (int, bool) {
-    c.Lock()
-    defer c.Unlock()
+    c.RLock()
+    defer c.RUnlock()
     v, ok := c.counter[key];
     return v, ok
 }
