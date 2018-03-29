@@ -190,7 +190,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
     for dim, val := range util.VolumeInfo(volume) {
-        netdata.Update(dim, util.SID(service, ns, volume), fmt.Sprint(val), c)
+        netdata.Update(dim, util.SID(service, ns), fmt.Sprint(val), c)
     }
 }
 
