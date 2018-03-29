@@ -30,11 +30,14 @@ var scriptListCont = redis.NewScript(`
     local cont = redis.call("ZRANGE", acct_key, ARGV[2], ARGV[3])
     for _, c in ipairs(cont) do
         local k = cont_pfix .. c;
-        local v = tonumber(redis.call('HGET', k, 'objects'))
-        local s = tonumber(redis.call('HGET', k, 'bytes'))
-        if v > tonumber(ARGV[1]) then
-            res[c] = {v, s}
-        end;
+        local v = redis.call('HGET', k, 'objects')
+        if v then
+            v = tonumber(v)
+            local s = tonumber(redis.call('HGET', k, 'bytes'))
+            if v > tonumber(ARGV[1]) then
+                res[c] = {v, s}
+            end;
+        end
     end;
     return cjson.encode(res);
 `)
