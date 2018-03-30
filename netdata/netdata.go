@@ -64,12 +64,11 @@ func Update(chart string, dim string, value string, c chan Metric) {
 	chart = fmt.Sprintf("%s.%s", Prefix, strings.Replace(chart, ".", "_", -1))
 	chartTitle := strings.ToUpper(strings.Join(strings.Split(chart, "_"), " "))
 	if !chartIndex.chartExists(chart) {
-		createChart(chart, "", chartTitle, "")
+		createChart(chart, "", chartTitle, "", "")
 		chartIndex.addChart(chart)
 	}
 	if !chartIndex.dimExists(chart, dim) {
-		createChart(chart, "", chartTitle, "")
-		createDim(dim)
+		createChart(chart, "", chartTitle, "", dim)
 		chartIndex.addDim(chart, dim)
 	}
 
@@ -80,8 +79,11 @@ func Update(chart string, dim string, value string, c chan Metric) {
     }
 }
 
-func createChart(chart string, desc string, title string, units string) {
-	fmt.Printf("CHART %s '%s' '%s' '%s' '%s'\n", chart, desc, title, units, getFamily(chart))
+func createChart(chart string, desc string, title string, units string, dim string) {
+    if dim != "" {
+        dim = fmt.Sprintf("DIMENSION %s '%s' absolute\n", dim, dim)
+    }
+	fmt.Printf("CHART %s '%s' '%s' '%s' '%s'\n%s", chart, desc, title, units, getFamily(chart), dim)
 }
 
 func getFamily(chart string) string {
@@ -103,8 +105,4 @@ func getFamily(chart string) string {
         }
     }
     return "Misc"
-}
-
-func createDim(dim string) {
-	fmt.Printf("DIMENSION %s '%s' absolute\n", dim, dim)
 }

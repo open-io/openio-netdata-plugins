@@ -91,9 +91,9 @@ func RaiseIf(err error) {
 // SID -- Get a service ID for netdata
 func SID(service string, ns string, volume ...string) (string) {
     if (len(volume) > 0) && (volume[0] != "") {
-        return fmt.Sprintf("%s-%s-%s" , ns, mReplacer.Replace(service), mReplacer.Replace(volume[0]));
+        return fmt.Sprintf("%s.%s.%s" , ns, mReplacer.Replace(service), volume[0]);
     }
-    return fmt.Sprintf("%s-%s", ns, mReplacer.Replace(service));
+    return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service));
 }
 
 // AcctID -- get an ID from a ns/account/container
