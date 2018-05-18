@@ -11,7 +11,6 @@ import(
     "oionetdata/util"
     "oionetdata/netdata"
     "sync"
-    // "log"
 )
 
 type serviceType []string
@@ -189,8 +188,9 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 }
 
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
-    for dim, val := range util.VolumeInfo(volume) {
-        netdata.Update(dim, util.SID(service, ns, volume), fmt.Sprint(val), c)
+    info, fsid := util.VolumeInfo(volume)
+    for dim, val := range info {
+        netdata.Update(dim, util.SID(service, ns, fsid), fmt.Sprint(val), c)
     }
 }
 

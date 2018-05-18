@@ -8,6 +8,8 @@ import(
     "net"
     "strings"
     "fmt"
+    "os"
+    "strconv"
 )
 
 var ipList map[string]bool
@@ -24,16 +26,19 @@ var mReplacer = strings.NewReplacer(
 /*
 VolumeInfo - Get volume metrics from statfs
 */
-func VolumeInfo(volume string) (map[string]uint64) {
+func VolumeInfo(volume string) (map[string]uint64, string) {
     var stat syscall.Statfs_t
-    syscall.Statfs(volume, &stat)
+    f, err := os.OpenFile(volume, os.O_RDONLY, 0644)
+    defer f.Close()
+    RaiseIf(err)
+    syscall.Fstatfs(int(f.Fd()), &stat)
     vMetric := make(map[string]uint64)
     vMetric["byte_avail"] = stat.Bavail * uint64(stat.Bsize)
     vMetric["byte_used"] = (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
     vMetric["byte_free"] = stat.Bfree * uint64(stat.Bsize)
     vMetric["inodes_free"] = stat.Ffree
     vMetric["inodes_used"] = stat.Files - stat.Ffree
-    return vMetric
+    return vMetric, strconv.FormatUint(uint64(stat.Fsid.X__val[1])<<32 | uint64(stat.Fsid.X__val[0]), 10)
 }
 
 /*
