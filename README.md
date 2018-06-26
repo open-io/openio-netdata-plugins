@@ -48,10 +48,19 @@ $ ./container.plugin 10 --ns OPENIO
 Type in `./[name].plugin -h` to get all available options for each plugin
 
 #### Install:
+
+CentOS 7
 ```sh
-$ sudo cp openio.plugin /usr/lib/netdata/plugins.d/
-$ sudo cp zookeeper.plugin /usr/lib/netdata/plugins.d/
-$ sudo cp container.plugin /usr/lib/netdata/plugins.d/
+$ cp openio.plugin /usr/libexec/netdata/plugins.d/
+$ cp zookeeper.plugin /usr/libexec/netdata/plugins.d/
+$ cp container.plugin /usr/libexec/netdata/plugins.d/
+```
+
+Ubuntu Xenial
+```sh
+$ cp openio.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
+$ cp zookeeper.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
+$ cp container.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
