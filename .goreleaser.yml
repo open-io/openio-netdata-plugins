@@ -27,8 +27,8 @@ archive:
 
 release:
   github:
-    owner: vdombrovski
-    name: openio-netdata
+    owner: open-io
+    name: openio-netdata-plugins
   draft: true
   prerelease: true
-  name_template: "v{{.Version}}"
+  name_template: "{{.Version}}"
