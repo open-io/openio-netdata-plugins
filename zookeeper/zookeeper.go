@@ -15,7 +15,7 @@ var ignore = map[string]bool{
 /*
 Collect - collect zookeeper metrics
 */
-func Collect(addr string, ns string, c chan netdata.Metric) {
+func Collect(addr string, ns string, c chan netdata.Metric) error {
 	conn, err := net.Dial("tcp", addr)
 
 	defer conn.Close()
@@ -25,7 +25,10 @@ func Collect(addr string, ns string, c chan netdata.Metric) {
 	conn.Write([]byte("mntr\n"))
 
 	buff := make([]byte, 4096)
-	n, _ := conn.Read(buff)
+	n, err := conn.Read(buff)
+	if err != nil {
+		return err;
+	}
 	stats := strings.Split(string(buff[:n-1]), "\n")
 
 	for s := range stats {
@@ -34,4 +37,5 @@ func Collect(addr string, ns string, c chan netdata.Metric) {
 			netdata.Update(kv[0], util.SID(addr, ns), kv[1], c)
 		}
 	}
+	return nil
 }
