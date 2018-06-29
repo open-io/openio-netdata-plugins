@@ -42,6 +42,21 @@ var scriptListCont = redis.NewScript(`
     return cjson.encode(res);
 `)
 
+var scriptAcctInfo = redis.NewScript(`
+	local accts = redis.call("hgetall", "accounts:")
+	local res = {}
+	local index = 0
+	for i, acc in ipairs(accts) do
+        if i % 2 == 1 then
+                local acct_key = "account:" .. acc;
+                res[index] = {acc, redis.call('HGET', acct_key, 'bytes'), redis.call("HGET", acct_key, 'objects')}
+                index = index + 1
+
+        end;
+	end;
+	return cjson.encode(res);
+`)
+
 // RedisAddr -- get redis address
 func RedisAddr(basePath string, ns string) string {
 	ip := ""
@@ -73,7 +88,7 @@ func RedisAddr(basePath string, ns string) string {
 }
 
 // Collect -- collect container metrics
-func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.Metric) error {
+func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan netdata.Metric) error {
 
 	accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
 	if err != nil {
@@ -91,22 +106,38 @@ func Collect(client *redis.Client, ns string, l int64, t int64, c chan netdata.M
 		ct := count.(int64)
 		cts := strconv.FormatInt(ct, 10)
 		netdata.Update("container_count", util.AcctID(ns, acct.(string)), cts, c)
-		var i int64
-		for i < ct {
-			res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
+		if !f {
+			var i int64
+			for i < ct {
+				res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
+				if err != nil {
+					return err
+				}
+				contObj := map[string][]int{}
+				err = json.Unmarshal([]byte(res.(string)), &contObj)
+				util.RaiseIf(err)
+				for cont, values := range contObj {
+					netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[0]), c)
+					netdata.Update("container_bytes", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[1]), c)
+				}
+				i += l
+				if l == -1 {
+					i = ct
+				}
+			}
+		} else {
+			acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
 			if err != nil {
 				return err
 			}
-			contObj := map[string][]int{}
-			err = json.Unmarshal([]byte(res.(string)), &contObj)
-			util.RaiseIf(err)
-			for cont, values := range contObj {
-				netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[0]), c)
-				netdata.Update("container_bytes", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[1]), c)
+			acctObj := map[string][]string{}
+			err = json.Unmarshal([]byte(acctInfo.(string)), &acctObj)
+			if err != nil {
+				return err
 			}
-			i += l
-			if l == -1 {
-				i = ct
+			for _, data := range(acctObj) {
+				netdata.Update("account_bytes", util.AcctID(ns, data[0]), data[1], c)
+				netdata.Update("account_objects", util.AcctID(ns, data[0]), data[2], c)
 			}
 		}
 	}
