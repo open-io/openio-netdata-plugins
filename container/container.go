@@ -94,6 +94,22 @@ func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan n
 	if err != nil {
 		return err
 	}
+	if f {
+		acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
+		if err != nil {
+			return err
+		}
+		acctObj := map[string][]string{}
+		err = json.Unmarshal([]byte(acctInfo.(string)), &acctObj)
+		if err != nil {
+			return err
+		}
+		for _, data := range(acctObj) {
+			netdata.Update("account_bytes", util.AcctID(ns, data[0]), data[1], c)
+			netdata.Update("account_objects", util.AcctID(ns, data[0]), data[2], c)
+		}
+	}
+
 
 	for _, acct := range accounts.([]interface{}) {
 		if acct == "1" {
@@ -124,20 +140,6 @@ func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan n
 				if l == -1 {
 					i = ct
 				}
-			}
-		} else {
-			acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
-			if err != nil {
-				return err
-			}
-			acctObj := map[string][]string{}
-			err = json.Unmarshal([]byte(acctInfo.(string)), &acctObj)
-			if err != nil {
-				return err
-			}
-			for _, data := range(acctObj) {
-				netdata.Update("account_bytes", util.AcctID(ns, data[0]), data[1], c)
-				netdata.Update("account_objects", util.AcctID(ns, data[0]), data[2], c)
 			}
 		}
 	}
