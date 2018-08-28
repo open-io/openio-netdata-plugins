@@ -105,7 +105,12 @@ func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan n
 			return err
 		}
 		for _, data := range(acctObj) {
+			val, err := strconv.Atoi(data[1])
+			if err != nil {
+				return err
+			}
 			netdata.Update("account_bytes", util.AcctID(ns, data[0]), data[1], c)
+			netdata.Update("account_kilobytes", util.AcctID(ns, data[0]), strconv.Itoa(val / 1000), c)
 			netdata.Update("account_objects", util.AcctID(ns, data[0]), data[2], c)
 		}
 	}
