@@ -6,24 +6,27 @@ import (
 	"oionetdata/netdata"
 	"oionetdata/openio"
 	"oionetdata/util"
-	"os"
 	"strings"
 )
 
 func main() {
-	var interval int64
-	os.Args, interval = collector.ParseInterval(os.Args)
-	nsPtr := flag.String("ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	confPtr := flag.String("conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
-	remotePtr := flag.Bool("remote", false, "Force remote metric collection")
+	var ns string
+	var conf string
+	var remote bool
+
+	flag.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
+	flag.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
+	flag.BoolVar(&remote, "remote", false, "Force remote metric collection")
 	flag.Parse()
 
-	util.ForceRemote = *remotePtr
+	interval := collector.ParseIntervalSeconds()
+
+	util.ForceRemote = remote
 	openio.CollectInterval = int(interval)
 	var proxyURLs = make(map[string]string)
-	var namespaces = strings.Split(*nsPtr, ":")
+	namespaces := strings.Split(ns, ":")
 	for i := range namespaces {
-		proxyURLs[namespaces[i]] = openio.ProxyURL(*confPtr, namespaces[i])
+		proxyURLs[namespaces[i]] = openio.ProxyURL(conf, namespaces[i])
 	}
 
 	collector.Run(interval, makeCollect(proxyURLs))
