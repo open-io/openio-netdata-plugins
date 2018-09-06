@@ -31,8 +31,7 @@ $ git clone [this repo] go/src/oionetdata
 $ go get github.com/go-redis/redis
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
-$ go build openio.plugin.go; go build zookeeper.plugin.go; go build container.plugin.go
-$ chmod +x openio.plugin zookeeper.plugin container.plugin.go
+$ go build ./cmd/openio.plugin/openio.plugin.go; go build ./cmd/zookeeper.plugin/zookeeper.plugin.go; go build ./cmd/container.plugin/container.plugin.go
 ```
 
 Test-run the plugins (Abort with Ctrl+C):
