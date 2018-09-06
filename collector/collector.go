@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"oionetdata/netdata"
@@ -17,26 +18,22 @@ var buf = make(map[string][]byte)
 // Collect -- function to call on each collection
 type Collect func(chan netdata.Metric) error
 
-// ParseInterval -- parse interval from arguments
-func ParseInterval(args []string) ([]string, int64) {
-	var interval int64
-	var err error
-	if len(args) > 1 {
-		interval, err = strconv.ParseInt(args[1], 10, 0)
-		if err != nil {
-			interval = 10
-		} else {
-			args = append(args[:1], args[2:]...)
-		}
+const DefaultIntervalSeconds = 10
+
+// ParseIntervalSeconds parses the interval
+func ParseIntervalSeconds() int {
+	interval, err := strconv.Atoi(flag.Arg(0))
+	if err != nil {
+		return DefaultIntervalSeconds
 	}
-	return args, interval
+	return interval
 }
 
 // Run -- run the collector
-func Run(pollInt int64, collect Collect) {
+func Run(intervalSeconds int, collect Collect) {
 	poll := 0
-	var cd int64 = 1
-	maxCd := pollInt * 20
+	cd := 1
+	maxCd := intervalSeconds * 20
 
 	for poll < PollsBeforeReload {
 		c := make(chan netdata.Metric, 1e5)
@@ -52,7 +49,7 @@ func Run(pollInt int64, collect Collect) {
 		} else {
 			cd = 1
 		}
-		time.Sleep(time.Duration(pollInt) * 1000 * time.Millisecond)
+		time.Sleep(time.Duration(intervalSeconds) * time.Second)
 		close(c)
 		for m := range c {
 			buf[m.Chart] = append(buf[m.Chart], fmt.Sprintf("SET %s %s\n", m.Dim, m.Value)...)

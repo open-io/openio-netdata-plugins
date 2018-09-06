@@ -2,26 +2,32 @@ package main
 
 import (
 	"flag"
-	"github.com/go-redis/redis"
 	"oionetdata/collector"
 	"oionetdata/container"
 	"oionetdata/netdata"
-	"os"
 	"strings"
+
+	"github.com/go-redis/redis"
 )
 
 func main() {
-	var interval int64
-	os.Args, interval = collector.ParseInterval(os.Args)
-	nsPtr := flag.String("ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	confPtr := flag.String("conf", "/etc/oio/sds/", "Path to SDS config directory")
-	limitPtr := flag.Int64("limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
-	threshPtr := flag.Int64("threshold", 3e5, "Minimal number of objects in container to report it")
-	fastPtr := flag.Bool("fast", false, "Use fast account listing")
+	var ns string
+	var conf string
+	var limit int64
+	var threshold int64
+	var fast bool
+
+	flag.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
+	flag.StringVar(&conf, "conf", "/etc/oio/sds/", "Path to SDS config directory")
+	flag.Int64Var(&limit, "limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
+	flag.Int64Var(&threshold, "threshold", 3e5, "Minimal number of objects in container to report it")
+	flag.BoolVar(&fast, "fast", false, "Use fast account listing")
 
 	flag.Parse()
+	intervalSeconds := collector.ParseIntervalSeconds()
 
-	collector.Run(interval, makeCollect(*confPtr, strings.Split(*nsPtr, ":"), *limitPtr, *threshPtr, *fastPtr))
+	namespaces := strings.Split(namespaces, ":")
+	collector.Run(intervalSeconds, makeCollect(conf, namespaces, limit, threshold, fast))
 }
 
 func makeCollect(basePath string, namespaces []string, l int64, t int64, f bool) (collect collector.Collect) {
