@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 	intervalSeconds := collector.ParseIntervalSeconds()
 
-	namespaces := strings.Split(namespaces, ":")
+	namespaces := strings.Split(ns, ":")
 	collector.Run(intervalSeconds, makeCollect(conf, namespaces, limit, threshold, fast))
 }
 

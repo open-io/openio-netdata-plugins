@@ -1,20 +1,20 @@
 builds:
   - binary: openio.plugin
-    main: openio.plugin.go
+    main: ./cmd/openio.plugin/main.go
     flags: "-gccgoflags '-static'"
     goos:
       - linux
     goarch:
       - amd64
   - binary: zookeeper.plugin
-    main: zookeeper.plugin.go
+    main: ./cmd/zookeeper.plugin/main.go
     flags: "-gccgoflags '-static'"
     goos:
       - linux
     goarch:
       - amd64
   - binary: container.plugin
-    main: container.plugin.go
+    main: ./cmd/container.plugin/main.go
     flags: "-gccgoflags '-static'"
     goos:
       - linux
