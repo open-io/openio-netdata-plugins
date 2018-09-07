@@ -23,22 +23,28 @@ var mReplacer = strings.NewReplacer(
 	"/", "_",
 )
 
-/*
-VolumeInfo - Get volume metrics from statfs
-*/
-func VolumeInfo(volume string) (map[string]uint64, string) {
-	var stat syscall.Statfs_t
+// VolumeInfo retrieves metrics from statfs
+func VolumeInfo(volume string) (map[string]uint64, string, error) {
 	f, err := os.OpenFile(volume, os.O_RDONLY, 0644)
+	if err != nil {
+		return nil, "", err
+	}
 	defer f.Close()
-	RaiseIf(err)
-	syscall.Fstatfs(int(f.Fd()), &stat)
+
+	var stat syscall.Statfs_t
+	err = syscall.Fstatfs(int(f.Fd()), &stat)
+	if err != nil {
+		return nil, "", err
+	}
 	vMetric := make(map[string]uint64)
 	vMetric["byte_avail"] = stat.Bavail * uint64(stat.Bsize)
 	vMetric["byte_used"] = (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
 	vMetric["byte_free"] = stat.Bfree * uint64(stat.Bsize)
 	vMetric["inodes_free"] = stat.Ffree
 	vMetric["inodes_used"] = stat.Files - stat.Ffree
-	return vMetric, strconv.FormatUint(uint64(stat.Fsid.X__val[1])<<32|uint64(stat.Fsid.X__val[0]), 10)
+
+	fsId := strconv.FormatUint(uint64(stat.Fsid.X__val[1])<<32|uint64(stat.Fsid.X__val[0]), 10)
+	return vMetric, fsId, nil
 }
 
 /*
