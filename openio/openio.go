@@ -1,12 +1,10 @@
 package openio
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"oionetdata/netdata"
 	"oionetdata/util"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -50,46 +48,35 @@ var counter = makeCounter()
 // CollectInterval -- collection interval for derivatives
 var CollectInterval = 10
 
-/*
-ProxyURL - Get URL of oioproxy from configuration
-*/
-func ProxyURL(basePath string, ns string) string {
-	file, err := os.Open(path.Join(basePath, ns))
-	util.RaiseIf(err)
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		t := scanner.Text()
-		if strings.HasPrefix(t, "proxy") {
-			return strings.Split(t, "=")[1]
-		}
+// ProxyAddr returns the proxy address from namespace configuration
+func ProxyAddr(basePath string, ns string) (string, error) {
+	conf, err := util.ReadConf(path.Join(basePath, ns), "=")
+	if err != nil {
+		return "", err
 	}
-	util.RaiseIf(scanner.Err())
-	return ""
+	addr := conf["proxy"]
+	if len(addr) != 0 {
+		return addr, nil
+	}
+	return "", fmt.Errorf("no proxy address found for %s", ns)
 }
 
-// ZookeeperAddr -- Retrieve the address of a local ZK service from the configuration
-func ZookeeperAddr(basePath string, ns string) string {
-	file, err := os.Open(path.Join(basePath, ns))
-	util.RaiseIf(err)
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		t := scanner.Text()
-		if strings.HasPrefix(t, "zookeeper") {
-			addrs := strings.Split(strings.Split(t, "=")[1], ",")
-			for a := range addrs {
-				if util.IsSameHost(addrs[a]) {
-					return addrs[a]
-				}
+// ZookeeperAddr retrieves local zookeeper address from namespace configuration
+func ZookeeperAddr(basePath string, ns string) (string, error) {
+	conf, err := util.ReadConf(path.Join(basePath, ns), "=")
+	if err != nil {
+		return "", err
+	}
+	zkStr := conf["zookeeper"]
+	if len(zkStr) != 0 {
+		zkAddrs := strings.Split(conf["zookeeper"], ",")
+		for _, zkAddr := range zkAddrs {
+			if util.IsSameHost(zkAddr) {
+				return zkAddr, nil
 			}
-			return ""
 		}
 	}
-	util.RaiseIf(scanner.Err())
-	return ""
+	return "", fmt.Errorf("no local zookeeper address found for %s", ns)
 }
 
 func diffCounter(metric string, sid string, value string) string {

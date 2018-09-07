@@ -1,6 +1,12 @@
 package util
 
-import "testing"
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
 
 func TestVolumeInfo(t *testing.T) {
 	info, id, err := VolumeInfo("/")
@@ -9,4 +15,80 @@ func TestVolumeInfo(t *testing.T) {
 	}
 	t.Logf("info: %v, id: %v", info, id)
 	// TODO verify output
+}
+
+func TestReadConf(t *testing.T) {
+	tests := []struct {
+		name         string
+		conf         string
+		expectedConf map[string]string
+		separator    string
+	}{
+		{
+			name:         "empty conf",
+			expectedConf: map[string]string{},
+		},
+		{
+			name: "sds conf",
+			conf: `
+[OPENIO]
+conscience=10.240.0.13:6000
+zookeeper=10.240.0.11:6005,10.240.0.12:6005,10.240.0.13:6005
+proxy=10.240.0.13:6006
+`,
+			expectedConf: map[string]string{
+				"conscience": "10.240.0.13:6000",
+				"zookeeper":  "10.240.0.11:6005,10.240.0.12:6005,10.240.0.13:6005",
+				"proxy":      "10.240.0.13:6006",
+			},
+		},
+		{
+			name: "redis conf",
+			conf: `
+daemonize no
+pidfile "/var/lib/oio/sds/OPENIO/redis-1/redis-1.pid"
+port 6011
+bind 10.240.0.13
+`,
+			expectedConf: map[string]string{
+				"daemonize": "no",
+				"pidfile":   "\"/var/lib/oio/sds/OPENIO/redis-1/redis-1.pid\"",
+				"port":      "6011",
+				"bind":      "10.240.0.13",
+			},
+			separator: " ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, err := ioutil.TempDir("", "test_readconf_")
+			if err != nil {
+				t.Fatalf("failed to create temp dir: %v", err)
+			}
+			defer os.RemoveAll(path)
+
+			confPath := filepath.Join(path, "config")
+			f, err := os.OpenFile(confPath, os.O_CREATE|os.O_RDWR, 0644)
+			if err != nil {
+				t.Fatalf("failed to create file: %v", err)
+			}
+
+			f.WriteString(tt.conf)
+			f.Close()
+
+			separator := "="
+			if len(tt.separator) != 0 {
+				separator = tt.separator
+			}
+			conf, err := ReadConf(confPath, separator)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(conf, tt.expectedConf) {
+				t.Fatalf("unexpected conf got\n%v\n expected\n%v", conf, tt.expectedConf)
+			}
+		})
+	}
+
 }

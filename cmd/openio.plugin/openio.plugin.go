@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"oionetdata/collector"
 	"oionetdata/netdata"
 	"oionetdata/openio"
@@ -25,8 +26,12 @@ func main() {
 	openio.CollectInterval = int(interval)
 	var proxyURLs = make(map[string]string)
 	namespaces := strings.Split(ns, ":")
-	for i := range namespaces {
-		proxyURLs[namespaces[i]] = openio.ProxyURL(conf, namespaces[i])
+	for _, name := range namespaces {
+		addr, err := openio.ProxyAddr(conf, name)
+		if err != nil {
+			log.Fatalf("Load failure: %v", err)
+		}
+		proxyURLs[name] = addr
 	}
 
 	collector.Run(interval, makeCollect(proxyURLs))
