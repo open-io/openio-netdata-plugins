@@ -187,7 +187,11 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 }
 
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
-	info, fsid := util.VolumeInfo(volume)
+	info, fsid, err := util.VolumeInfo(volume)
+	if err != nil {
+		// TODO handle err
+		return
+	}
 	for dim, val := range info {
 		netdata.Update(dim, util.SID(service, ns, fsid), fmt.Sprint(val), c)
 	}
