@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -113,4 +114,28 @@ func AcctID(ns string, acct string, cont ...string) string {
 		return fmt.Sprintf("%s.%s.%s", ns, mReplacer.Replace(acct), mReplacer.Replace(cont[0]))
 	}
 	return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(acct))
+}
+
+func ReadConf(path string, separator string) (map[string]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	config := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if pos := strings.Index(line, separator); pos > 0 {
+			if key := strings.TrimSpace(line[:pos]); len(key) > 0 {
+				value := ""
+				if len(line) > pos {
+					value = strings.TrimSpace(line[pos+1:])
+				}
+				config[key] = value
+			}
+		}
+	}
+	return config, nil
 }

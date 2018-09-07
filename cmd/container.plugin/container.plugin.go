@@ -31,11 +31,16 @@ func main() {
 }
 
 func makeCollect(basePath string, namespaces []string, l int64, t int64, f bool) (collect collector.Collect) {
+
 	return func(c chan netdata.Metric) error {
 		errors := make(map[string]error)
-		for nsi := range namespaces {
-			client := redis.NewClient(&redis.Options{Addr: container.RedisAddr(basePath, namespaces[nsi])})
-			errors[namespaces[nsi]] = container.Collect(client, namespaces[nsi], l, t, f, c)
+		for _, ns := range namespaces {
+			redisAddr, err := container.RedisAddr(basePath, ns)
+			if err != nil {
+				return err
+			}
+			client := redis.NewClient(&redis.Options{Addr: redisAddr})
+			errors[ns] = container.Collect(client, ns, l, t, f, c)
 		}
 		for _, err := range errors {
 			if err != nil {

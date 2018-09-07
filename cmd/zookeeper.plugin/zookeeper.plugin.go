@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"oionetdata/collector"
 	"oionetdata/netdata"
 	"oionetdata/openio"
@@ -20,11 +21,12 @@ func main() {
 
 	var zkAddrs = make(map[string]string)
 	namespaces := strings.Split(ns, ":")
-	for i := range namespaces {
-		a := openio.ZookeeperAddr(conf, namespaces[i])
-		if a != "" {
-			zkAddrs[namespaces[i]] = a
+	for _, name := range namespaces {
+		addr, err := openio.ZookeeperAddr(conf, name)
+		if err != nil {
+			log.Fatalf("Load failure: %v", err)
 		}
+		zkAddrs[name] = addr
 	}
 	collector.Run(intervalSeconds, makeCollector(zkAddrs))
 }

@@ -1,17 +1,15 @@
 package container
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis"
 	"oionetdata/netdata"
 	"oionetdata/util"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
+
+	"github.com/go-redis/redis"
 )
 
 var scriptGetAccounts = redis.NewScript(`
@@ -58,33 +56,24 @@ var scriptAcctInfo = redis.NewScript(`
 `)
 
 // RedisAddr -- get redis address
-func RedisAddr(basePath string, ns string) string {
-	ip := ""
-	port := ""
+func RedisAddr(basePath string, ns string) (string, error) {
 	p := path.Join(basePath, ns, "redis-*/redis.conf")
 	match, err := filepath.Glob(p)
 	if err != nil || len(match) == 0 {
-		util.RaiseIf(fmt.Errorf("ERROR Path %s did not match any files", p))
+		return "", fmt.Errorf("failed to find redis conf in %s", p)
 	}
 
-	file, err := os.Open(match[0])
-	util.RaiseIf(err)
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		t := scanner.Text()
-		if strings.HasPrefix(t, "port ") {
-			port = strings.Split(t, "port ")[1]
-		}
-		if strings.HasPrefix(t, "bind ") {
-			ip = strings.Split(t, "bind ")[1]
-		}
-		if ip != "" && port != "" {
-			return fmt.Sprintf("%s:%s", ip, port)
-		}
+	conf, err := util.ReadConf(match[0], " ")
+	if err != nil {
+		return "", err
 	}
-	return ""
+
+	ip := conf["bind"]
+	port := conf["port"]
+	if len(ip) != 0 && len(port) != 0 {
+		return fmt.Sprintf("%s:%s", ip, port), nil
+	}
+	return "", fmt.Errorf("invalid redis conf")
 }
 
 // Collect -- collect container metrics
