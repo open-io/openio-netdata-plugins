@@ -7,15 +7,20 @@ import (
 	"time"
 )
 
+type testCollector struct {
+	data map[string]string
+}
+
+func (c *testCollector) Collect() (map[string]string, error) {
+	return c.data, nil
+}
+
 func TestWorker(t *testing.T) {
 	data := map[string]string{}
-	collect := func() (map[string]string, error) {
-		return data, nil
-	}
-
+	collector := &testCollector{data}
 	var buf bytes.Buffer
 	testWriter := &writer{out: &buf}
-	w := NewWorker(time.Millisecond, testWriter, collect)
+	w := NewWorker(time.Millisecond, testWriter, collector)
 	chart := NewChart("testType", "testID", "testName", "Test Title", "testUnit", "testFamily")
 	chart.AddDimension("fooID", "foo", AbsoluteAlgorithm)
 	chart.AddDimension("barID", "bar", IncrementalAlgorithm)
