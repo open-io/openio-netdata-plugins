@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-type Collect func() (map[string]string, error)
+type Collector interface {
+	Collect() (map[string]string, error)
+}
 
 type worker struct {
 	interval   time.Duration
@@ -21,15 +23,15 @@ type worker struct {
 
 	writer Writer
 
-	collect Collect
+	collector Collector
 }
 
-func NewWorker(interval time.Duration, writer Writer, collect Collect) *worker {
+func NewWorker(interval time.Duration, writer Writer, collector Collector) *worker {
 	return &worker{
-		interval: interval,
-		writer:   writer,
-		collect:  collect,
-		charts:   make(map[string]*Chart),
+		interval:  interval,
+		writer:    writer,
+		collector: collector,
+		charts:    make(map[string]*Chart),
 	}
 }
 
@@ -78,7 +80,7 @@ func (w *worker) sleep(sleepTime time.Duration) {
 }
 
 func (w *worker) update(interval time.Duration) (bool, error) {
-	data, err := w.collect()
+	data, err := w.collector.Collect()
 	if err != nil {
 		return false, err
 	}
