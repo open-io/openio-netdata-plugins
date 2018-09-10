@@ -30,6 +30,7 @@ func TestWorker(t *testing.T) {
 		"CHART testType.testID 'testName' 'Test Title' 'testUnit' 'testFamily'",
 		"DIMENSION 'fooID' 'foo' absolute",
 		"DIMENSION 'barID' 'bar' incremental",
+		"",
 	}, "\n")
 	validateOutput(t, w, &buf, expectedOutput)
 
