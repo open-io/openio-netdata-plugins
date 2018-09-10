@@ -27,10 +27,6 @@ type Chart struct {
 	refresh bool
 }
 
-type Writer interface {
-	Printf(format string, v ...interface{})
-}
-
 func NewChart(chartType, id, name, title, units, family string) *Chart {
 	return &Chart{
 		Type:       chartType,

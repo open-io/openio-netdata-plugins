@@ -2,19 +2,10 @@ package netdata
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
-
-type testWriter struct {
-	buf *bytes.Buffer
-}
-
-func (w *testWriter) Printf(format string, args ...interface{}) {
-	w.buf.WriteString(fmt.Sprintf(format, args...))
-}
 
 func TestWorker(t *testing.T) {
 	data := map[string]string{}
@@ -23,8 +14,8 @@ func TestWorker(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	writer := &testWriter{&buf}
-	w := NewWorker(time.Millisecond, writer, collect)
+	testWriter := &writer{out: &buf}
+	w := NewWorker(time.Millisecond, testWriter, collect)
 	chart := NewChart("testType", "testID", "testName", "Test Title", "testUnit", "testFamily")
 	chart.AddDimension("fooID", "foo", AbsoluteAlgorithm)
 	chart.AddDimension("barID", "bar", IncrementalAlgorithm)
