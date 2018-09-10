@@ -73,7 +73,7 @@ func (c *Chart) create(out Writer) {
 		dim := c.dimensions[dimID]
 		dimensionsCreate = append(dimensionsCreate, dim.create())
 	}
-	out.Printf("%v\n%v", chartCreate, strings.Join(dimensionsCreate, "\n"))
+	out.Printf("%v\n%v\n", chartCreate, strings.Join(dimensionsCreate, "\n"))
 	c.refresh = false
 }
 
