@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"time"
+
 	"oionetdata/collector"
 	"oionetdata/netdata"
 	"oionetdata/openio"
@@ -11,25 +14,16 @@ import (
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalf("argument required")
+	}
 	var ns string
 	var conf string
-	flag.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	flag.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
-	flag.Parse()
-
-	intervalSeconds := collector.ParseIntervalSeconds()
-
-	var zkAddrs = make(map[string]string)
-	namespaces := strings.Split(ns, ":")
-	for _, name := range namespaces {
-		addr, err := openio.ZookeeperAddr(conf, name)
-		if err != nil {
-			log.Fatalf("Load failure: %v", err)
-		}
-		zkAddrs[name] = addr
-	}
-	collector.Run(intervalSeconds, makeCollector(zkAddrs))
-}
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.StringVar(&ns, "ns", "OPENIO", "Namespace")
+	fs.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
+	fs.Parse(os.Args[2:])
+	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 func makeCollector(zkAddrs map[string]string) (collect collector.Collect) {
 	return func(c chan netdata.Metric) error {

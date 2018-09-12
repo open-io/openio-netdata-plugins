@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"oionetdata/netdata"
@@ -21,8 +20,8 @@ type Collect func(chan netdata.Metric) error
 const DefaultIntervalSeconds = 10
 
 // ParseIntervalSeconds parses the interval
-func ParseIntervalSeconds() int {
-	interval, err := strconv.Atoi(flag.Arg(0))
+func ParseIntervalSeconds(arg string) int {
+	interval, err := strconv.Atoi(arg)
 	if err != nil {
 		return DefaultIntervalSeconds
 	}
