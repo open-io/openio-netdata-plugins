@@ -12,7 +12,38 @@ This plugin collects metrics from OpenIO services. Currently reported metrics ar
 - Zookeeper metrics for local Zookeeper instances
 - Account container listing (account container count, size and object count for containers above threshold)
 
-Suggestions are welcome!
+#### Zookeeper
+
+This plugin provides statistics from zookeeper server. Statistics are collected using `mntr` command.
+
+Charts:
+
+1. **latency** - latency in milliseconds
+ * min
+ * max
+ * avg
+
+2. **packets** - packets stats in packets/s
+ * received
+ * sent
+
+3. **connections** - connections count
+ * alive
+
+4. **requests** - requests count
+ * outstanding
+
+5. **nodes** - nodes count
+ * znode
+ * watch
+ * ephemeral
+
+6. **data** - data size
+ * size
+
+7. **fds** - file descriptors count
+ * open
+ * max
 
 Install
 ---
