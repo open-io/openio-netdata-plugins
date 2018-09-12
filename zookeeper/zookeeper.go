@@ -1,41 +1,43 @@
 package zookeeper
 
 import (
+	"bufio"
 	"net"
-	"oionetdata/netdata"
-	"oionetdata/util"
 	"strings"
 )
 
-var ignore = map[string]bool{
-	"zk_version":      true,
-	"zk_server_state": true,
+type collector struct {
+	addr string
 }
 
-/*
-Collect - collect zookeeper metrics
-*/
-func Collect(addr string, ns string, c chan netdata.Metric) error {
-	conn, err := net.Dial("tcp", addr)
+func NewCollector(addr string) *collector {
+	return &collector{
+		addr: addr,
+	}
+}
 
+func (c *collector) Collect() (map[string]string, error) {
+	conn, err := net.Dial("tcp", c.addr)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
-
-	util.RaiseIf(err)
 
 	conn.Write([]byte("mntr\n"))
 
-	buff := make([]byte, 4096)
-	n, err := conn.Read(buff)
-	if err != nil {
-		return err;
-	}
-	stats := strings.Split(string(buff[:n-1]), "\n")
-
-	for s := range stats {
-		kv := strings.Split(stats[s], "\t")
-		if _, o := ignore[kv[0]]; !o {
-			netdata.Update(kv[0], util.SID(addr, ns), kv[1], c)
+	data := make(map[string]string)
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		kv := strings.Split(line, "\t")
+		if len(kv) != 2 {
+			continue
 		}
+		data[kv[0]] = kv[1]
 	}
-	return nil
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
