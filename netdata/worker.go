@@ -75,7 +75,6 @@ func (w *worker) process() {
 }
 
 func (w *worker) sleep(sleepTime time.Duration) {
-	log.Printf("DEBUG: sleeping for %v", sleepTime)
 	time.Sleep(sleepTime)
 }
 
