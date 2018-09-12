@@ -2,29 +2,35 @@ package main
 
 import (
 	"flag"
+	"log"
 	"oionetdata/collector"
 	"oionetdata/container"
 	"oionetdata/netdata"
+	"os"
 	"strings"
 
 	"github.com/go-redis/redis"
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalf("argument required")
+	}
+
 	var ns string
 	var conf string
 	var limit int64
 	var threshold int64
 	var fast bool
 
-	flag.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	flag.StringVar(&conf, "conf", "/etc/oio/sds/", "Path to SDS config directory")
-	flag.Int64Var(&limit, "limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
-	flag.Int64Var(&threshold, "threshold", 3e5, "Minimal number of objects in container to report it")
-	flag.BoolVar(&fast, "fast", false, "Use fast account listing")
-
-	flag.Parse()
-	intervalSeconds := collector.ParseIntervalSeconds()
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
+	fs.StringVar(&conf, "conf", "/etc/oio/sds/", "Path to SDS config directory")
+	fs.Int64Var(&limit, "limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
+	fs.Int64Var(&threshold, "threshold", 3e5, "Minimal number of objects in container to report it")
+	fs.BoolVar(&fast, "fast", false, "Use fast account listing")
+	fs.Parse(os.Args[2:])
+	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	namespaces := strings.Split(ns, ":")
 	collector.Run(intervalSeconds, makeCollect(conf, namespaces, limit, threshold, fast))

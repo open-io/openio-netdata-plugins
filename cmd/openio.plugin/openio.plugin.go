@@ -7,20 +7,25 @@ import (
 	"oionetdata/netdata"
 	"oionetdata/openio"
 	"oionetdata/util"
+	"os"
 	"strings"
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalf("argument required")
+	}
+
 	var ns string
 	var conf string
 	var remote bool
 
-	flag.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
-	flag.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
-	flag.BoolVar(&remote, "remote", false, "Force remote metric collection")
-	flag.Parse()
-
-	interval := collector.ParseIntervalSeconds()
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
+	fs.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
+	fs.BoolVar(&remote, "remote", false, "Force remote metric collection")
+	fs.Parse(os.Args[2:])
+	interval := collector.ParseIntervalSeconds(os.Args[1])
 
 	util.ForceRemote = remote
 	openio.CollectInterval = int(interval)
