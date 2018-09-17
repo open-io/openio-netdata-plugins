@@ -21,15 +21,20 @@ func TestWorker(t *testing.T) {
 	var buf bytes.Buffer
 	testWriter := &writer{out: &buf}
 	w := NewWorker(time.Millisecond, testWriter, collector)
-	chart := NewChart("testType", "testID", "testName", "Test Title", "testUnit", "testFamily")
+	chart := NewChart("testType", "testID", "testName", "Test Title", "testUnit", "testFamily", "testCategory")
 	chart.AddDimension("fooID", "foo", AbsoluteAlgorithm)
 	chart.AddDimension("barID", "bar", IncrementalAlgorithm)
 	w.AddChart(chart)
+	chart2 := NewChart("testType2", "testID2", "testName2", "Test Title 2", "testUnit2", "testFamily2", "testCategory2")
+	chart2.AddDimension("foobarID", "foobar", AbsoluteAlgorithm)
+	w.AddChart(chart2)
 
 	expectedOutput := strings.Join([]string{
-		"CHART testType.testID 'testName' 'Test Title' 'testUnit' 'testFamily'",
+		"CHART testType.testID 'testName' 'Test Title' 'testUnit' 'testFamily' 'testCategory'",
 		"DIMENSION 'fooID' 'foo' absolute",
 		"DIMENSION 'barID' 'bar' incremental",
+		"CHART testType2.testID2 'testName2' 'Test Title 2' 'testUnit2' 'testFamily2' 'testCategory2'",
+		"DIMENSION 'foobarID' 'foobar' absolute",
 		"",
 	}, "\n")
 	validateOutput(t, w, &buf, expectedOutput)
