@@ -92,7 +92,7 @@ func (c *Chart) Update(data map[string]string, interval time.Duration, out Write
 	}
 
 	if len(updatedDimensions) != 0 {
-		out.Printf("BEGIN %s.%s\n%s\nEND", c.Type, c.ID, strings.Join(updatedDimensions, "\n"))
+		out.Printf("BEGIN %s.%s\n%s\nEND\n", c.Type, c.ID, strings.Join(updatedDimensions, "\n"))
 		return true
 	}
 

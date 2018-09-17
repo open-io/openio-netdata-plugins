@@ -44,17 +44,23 @@ func TestWorker(t *testing.T) {
 
 	// dimension foo update
 	data["fooID"] = "1"
-	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nEND")
+	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nEND\n")
 
 	// dimension bar update
 	data["barID"] = "2"
-	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nSET 'barID' = 2\nEND")
+	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nSET 'barID' = 2\nEND\n")
 
 	delete(data, "fooID")
-	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'barID' = 2\nEND")
+	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'barID' = 2\nEND\n")
 
 	delete(data, "barID")
 	validateOutput(t, w, &buf, "")
+
+	// dimension foo and foobar update
+	data["fooID"] = "1"
+	data["foobarID"] = "2"
+	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nEND\nBEGIN testType2.testID2\nSET 'foobarID' = 2\nEND\n")
+
 }
 
 func validateOutput(t *testing.T, w *worker, buf *bytes.Buffer, expectedOutput string) {
