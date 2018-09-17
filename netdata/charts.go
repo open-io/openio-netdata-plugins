@@ -14,12 +14,13 @@ const (
 )
 
 type Chart struct {
-	ID     string
-	Type   string
-	Name   string
-	Title  string
-	Units  string
-	Family string
+	ID       string
+	Type     string
+	Name     string
+	Title    string
+	Units    string
+	Family   string
+	Category string
 
 	dimensions      map[string]Dimension
 	dimensionsIndex []string
@@ -27,7 +28,7 @@ type Chart struct {
 	refresh bool
 }
 
-func NewChart(chartType, id, name, title, units, family string) *Chart {
+func NewChart(chartType, id, name, title, units, family, category string) *Chart {
 	return &Chart{
 		Type:       chartType,
 		ID:         id,
@@ -35,6 +36,7 @@ func NewChart(chartType, id, name, title, units, family string) *Chart {
 		Title:      title,
 		Units:      units,
 		Family:     family,
+		Category:   category,
 		dimensions: make(map[string]Dimension),
 		refresh:    true,
 	}
@@ -67,7 +69,7 @@ func (c *Chart) AddDimension(id, name string, algorithm Algorithm) {
 }
 
 func (c *Chart) create(out Writer) {
-	chartCreate := fmt.Sprintf("CHART %s.%s '%s' '%s' '%s' '%s'", c.Type, c.ID, c.Name, c.Title, c.Units, c.Family)
+	chartCreate := fmt.Sprintf("CHART %s.%s '%s' '%s' '%s' '%s' '%s'", c.Type, c.ID, c.Name, c.Title, c.Units, c.Family, c.Category)
 	dimensionsCreate := []string{}
 	for _, dimID := range c.dimensionsIndex {
 		dim := c.dimensions[dimID]

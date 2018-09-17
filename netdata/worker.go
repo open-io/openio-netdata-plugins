@@ -19,7 +19,8 @@ type worker struct {
 
 	lastUpdate time.Time
 
-	charts Charts
+	charts      Charts
+	chartsIndex []string
 
 	writer Writer
 
@@ -36,6 +37,7 @@ func NewWorker(interval time.Duration, writer Writer, collector Collector) *work
 }
 
 func (w *worker) AddChart(chart *Chart) {
+	w.chartsIndex = append(w.chartsIndex, chart.ID)
 	w.charts[chart.ID] = chart
 }
 
@@ -86,7 +88,8 @@ func (w *worker) update(interval time.Duration) (bool, error) {
 
 	updated := false
 
-	for _, chart := range w.charts {
+	for _, chartID := range w.chartsIndex {
+		chart := w.charts[chartID]
 		updated = chart.Update(data, interval, w.writer)
 	}
 
