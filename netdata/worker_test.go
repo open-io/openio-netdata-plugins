@@ -63,7 +63,7 @@ func TestWorker(t *testing.T) {
 
 }
 
-func validateOutput(t *testing.T, w *Worker, buf *bytes.Buffer, expectedOutput string) {
+func validateOutput(t *testing.T, w *worker, buf *bytes.Buffer, expectedOutput string) {
 	w.process()
 	output := buf.String()
 	if output != expectedOutput {

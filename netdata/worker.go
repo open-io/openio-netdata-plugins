@@ -9,7 +9,7 @@ type Collector interface {
 	Collect() (map[string]string, error)
 }
 
-type Worker struct {
+type worker struct {
 	interval   time.Duration
 	maxRetries int
 
@@ -29,8 +29,8 @@ type Worker struct {
 	collector Collector
 }
 
-func NewWorker(interval time.Duration, writer Writer, collector Collector) *Worker {
-	return &Worker{
+func NewWorker(interval time.Duration, writer Writer, collector Collector) *worker {
+	return &worker{
 		interval:  interval,
 		writer:    writer,
 		collector: collector,
@@ -38,20 +38,20 @@ func NewWorker(interval time.Duration, writer Writer, collector Collector) *Work
 	}
 }
 
-func (w *Worker) SetCollector(collector Collector) {
+func (w *worker) SetCollector(collector Collector) {
 	w.collector = collector
 }
 
-func (w *Worker) AddChart(chart *Chart) {
+func (w *worker) AddChart(chart *Chart) {
 	w.chartsIndex = append(w.chartsIndex, chart.ID)
 	w.charts[chart.ID] = chart
 }
 
-func (w* Worker) SinceLastRun() time.Duration {
-	return w.elapsed + w.interval;
+func (w *worker) SinceLastRun() time.Duration {
+	return w.elapsed + w.interval
 }
 
-func (w *Worker) Run() {
+func (w *worker) Run() {
 	log.Printf("Start interval: %v, retries: %v", w.interval, w.maxRetries)
 
 	for {
@@ -59,7 +59,7 @@ func (w *Worker) Run() {
 	}
 }
 
-func (w *Worker) process() {
+func (w *worker) process() {
 	sleepTime := w.interval
 
 	w.sleep(sleepTime)
@@ -86,11 +86,11 @@ func (w *Worker) process() {
 	}
 }
 
-func (w *Worker) sleep(sleepTime time.Duration) {
+func (w *worker) sleep(sleepTime time.Duration) {
 	time.Sleep(sleepTime)
 }
 
-func (w *Worker) update(interval time.Duration) (bool, error) {
+func (w *worker) update(interval time.Duration) (bool, error) {
 	data, err := w.collector.Collect()
 	if err != nil {
 		return false, err
