@@ -79,6 +79,15 @@ func ZookeeperAddr(basePath string, ns string) (string, error) {
 	return "", fmt.Errorf("no local zookeeper address found for %s", ns)
 }
 
+// Commands retrieves commands to execute on each node
+func Commands(path string) (map[string]string, error) {
+	conf, err := util.ReadConf(path, "=")
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
 func diffCounter(metric string, sid string, value string) string {
 	res := ""
 	curr, err := strconv.Atoi(value)
