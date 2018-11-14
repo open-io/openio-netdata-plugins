@@ -80,5 +80,10 @@ func main() {
 	fdStats.AddDimension("zk_max_file_descriptor_count", "max", netdata.AbsoluteAlgorithm)
 	worker.AddChart(fdStats)
 
+	// (Leader) Pending syncs
+	syncStats := netdata.NewChart(zkType, "syncs", "", "Pending syncs", "syncs", family, "zk.syncs")
+	syncStats.AddDimension("zk_pending_syncs", "syncs", netdata.AbsoluteAlgorithm)
+	worker.AddChart(syncStats)
+
 	worker.Run()
 }
