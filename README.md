@@ -219,3 +219,8 @@ TODO
 - OpenIO: implement error handling
 - Zookeeper: implement error handling
 - Container: improve error handling
+
+License
+---
+
+[GNU Affero General Public License (AGPL v3)](https://www.gnu.org/licenses/agpl-3.0.html)
