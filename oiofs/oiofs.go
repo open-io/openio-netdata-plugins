@@ -22,15 +22,70 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 )
+
+// Ops defines all possible metrics
+var Ops = map[string][]string {
+	"metaPrefix": []string{"Meta",},
+	"metaDebug": []string{
+		"addDir", "addLink", "allocateInode", "checkFsExists", "deallocateInode", "delDir", "delLink", "deleteFs",
+		"getInodeStat", "getXAttr", "incrNlink", "listXAttr", "lookupInodeStat", "maxIno", "mkfs", "readdir",
+		"removeXAttr", "setInodeStat", "setLink", "setSymlink", "setXAttr", "updateTimestampsInode", "init_ctx",
+	},
+	"fusePrefix": []string{"fuse",},
+	"fuse": []string{"read_total_byte", "write_total_byte"},
+	"fuseDebug": []string{
+		" rename", "create", "fallocate", "flush", "forget", "fsync", "getattr", "getxattr",
+		"link", "listxattr", "lookup", "mkdir", "mknod", "open", "opendir", "read", "readdir", "readlink", "release",
+		"releasedir", "rmdir", "setattr", "setxattr", "statfs", "symlink", "unlink", "write",
+	},
+	"sdsPrefix": []string{"sds",},
+	"sds": []string{"upload_failed", "upload_succeeded", "download_failed", "download_succeeded",
+		"download_total_byte", "upload_total_byte",
+	},
+	"sdsDebug": []string{
+		"delete", "deleteAllContainers", "deleteFs", "flushContainer", "mkfs", "pad", "replace",
+		"replaceChunk", "replacePartialChunk", "statFs", "truncate", "download", "upload",
+	},
+	"cachePrefix": []string{"cache",},
+	"cache": []string{
+		"chunk_count", "read_count", "read_total_us", "read_count", "read_hit",
+		"read_miss", "read_total_us", "chunk_avg_age_microseconds", "read_total_byte",
+		"chunk_total_byte", "chunk_used_byte",
+	},
+	"cacheDebug": []string{},
+}
 
 type collector struct {
 	addr string
+	full bool
+	whitelist map[string]int64
 }
 
-func NewCollector(addr string) *collector {
+func NewCollector(addr string, full bool) *collector {
+	var whitelist = map[string]int64{}
+	// Generate whitelist of metrics to keep
+	for _, p := range([]string{"meta", "sds", "fuse", "cache"}) {
+		var prefix = Ops[fmt.Sprintf("%sPrefix", p)][0]
+		for _, op := range(Ops[p]) {
+			whitelist[fmt.Sprintf("%s_%s", prefix, op)] = 0
+		}
+		if full {
+			for _, op := range(Ops[fmt.Sprintf("%sDebug", p)]) {
+				if p == "sds" || (p == "meta" && op != "init_ctx") {
+					op = strings.Title(op)
+				}
+				whitelist[fmt.Sprintf("%s_%s_count", prefix, op)] = 0
+				whitelist[fmt.Sprintf("%s_%s_total_us", prefix, op)] = 0
+			}
+		}
+	}
+
 	return &collector{
 		addr: addr,
+		full: full,
+		whitelist: whitelist,
 	}
 }
 
@@ -52,10 +107,15 @@ func (c *collector) Collect() (map[string]string, error) {
 		return nil, err
 	}
 
-	res := map[string]string{}
+	var res = map[string]string{}
 
-	for k, v := range(rs.(map[string]interface{})) {
-		res[k] = strconv.FormatInt(int64(v.(float64)), 10)
+	for k, _ := range(c.whitelist) {
+		// NOTE: VDO: the cost of type assertion is negligible
+		if v, ok := rs.(map[string]interface{})[k]; ok && v != nil {
+			res[k] = strconv.FormatInt(int64(v.(float64)), 10)
+		} else {
+			res[k] = "0"
+		}
 	}
 	return res, nil
 }

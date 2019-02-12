@@ -36,9 +36,11 @@ func main() {
 	}
 	var addr string
 	var id string
+	var full bool
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&addr, "addr", "localhost:6999", "IP:PORT of oiofs stats route")
 	fs.StringVar(&id, "id", "default", "Connector identifier (alphanumeric)")
+	fs.BoolVar(&full, "full", false, "Gather all metrics")
 	fs.Parse(os.Args[2:])
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
@@ -47,41 +49,35 @@ func main() {
 	// }
 
 	writer := netdata.NewDefaultWriter()
-	collector := oiofs.NewCollector(addr)
+	collector := oiofs.NewCollector(addr, full)
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer, collector)
 
 	fsType := fmt.Sprintf("oiofs_%s", id)
 	family := "oiofs"
 
-	MetaOps := []string{
-		"addDir", "addLink", "allocateInode", "checkFsExists", "deallocateInode", "delDir", "delLink", "deleteFs",
-		"getInodeStat", "getXAttr", "incrNlink", "listXAttr", "lookupInodeStat", "maxIno", "mkfs", "readdir",
-		"removeXAttr", "setInodeStat", "setLink", "setSymlink", "setXAttr", "updateTimestampsInode",
-	}
+	if full {
+		// Metadata counters
+		metaCount := netdata.NewChart(fsType, "meta_count", "", "Metadata Counters", "ops", family, "oiofs.meta")
+		for _, op := range oiofs.Ops["metaDebug"] {
+			metaCount.AddDimension(
+				fmt.Sprintf("Meta_%s_count", strings.Title(op)),
+				strings.TrimSpace(op),
+				netdata.IncrementalAlgorithm,
+			)
+		}
+		worker.AddChart(metaCount)
 
-	// Metadata counters
-	metaCount := netdata.NewChart(fsType, "meta_count", "", "Metadata Counters", "ops", family, "oiofs.meta")
-	for _, op := range MetaOps {
-		metaCount.AddDimension(
-			fmt.Sprintf("Meta_%s_count", strings.Title(op)),
-			strings.TrimSpace(op),
-			netdata.IncrementalAlgorithm,
-		)
+		// Metadata latency
+		metaLatency := netdata.NewChart(fsType, "meta_latency", "", "Metadata latency", "us", family, "oiofs.meta_latency")
+		for _, op := range oiofs.Ops["metaDebug"] {
+			metaLatency.AddDimension(
+				fmt.Sprintf("Meta_%s_total_us", strings.Title(op)),
+				strings.TrimSpace(op),
+				netdata.AbsoluteAlgorithm,
+			)
+		}
+		worker.AddChart(metaLatency)
 	}
-	metaCount.AddDimension("Meta_init_ctx_count", "initCtx", netdata.IncrementalAlgorithm)
-	worker.AddChart(metaCount)
-
-	// Metadata latency
-	metaLatency := netdata.NewChart(fsType, "meta_latency", "", "Metadata latency", "us", family, "oiofs.meta_latency")
-	for _, op := range MetaOps {
-		metaLatency.AddDimension(
-			fmt.Sprintf("Meta_%s_total_us", strings.Title(op)),
-			strings.TrimSpace(op),
-			netdata.AbsoluteAlgorithm,
-		)
-	}
-	metaLatency.AddDimension("Meta_init_ctx_total_us", "initCtx", netdata.AbsoluteAlgorithm)
-	worker.AddChart(metaLatency)
 
 	// Cache size
 	cacheSizeStats := netdata.NewChart(fsType, "cache_size", "", "Cache Size", "bytes", family, "oiofs.cache_size")
@@ -92,7 +88,7 @@ func main() {
 
 	// Cache age
 	cacheAgeStats := netdata.NewChart(fsType, "cache_age", "", "Cache age", "us", family, "oiofs.cache_age")
-	cacheAgeStats.AddDimension("cache_rcache_chunk_avg_age_usead_total_byte", "age", netdata.AbsoluteAlgorithm)
+	cacheAgeStats.AddDimension("cache_chunk_avg_age_microseconds", "age", netdata.AbsoluteAlgorithm)
 	worker.AddChart(cacheAgeStats)
 
 	// Cache latency
@@ -103,8 +99,8 @@ func main() {
 	// Cache read
 	cacheReadStats := netdata.NewChart(fsType, "cache_read", "", "Cache read", "ops", family, "oiofs.cache")
 	cacheReadStats.AddDimension("cache_read_count", "total", netdata.IncrementalAlgorithm)
-	cacheReadStats.AddDimension("cache_read_count", "hit", netdata.IncrementalAlgorithm)
-	cacheReadStats.AddDimension("cache_read_count", "miss", netdata.IncrementalAlgorithm)
+	cacheReadStats.AddDimension("cache_read_hit", "hit", netdata.IncrementalAlgorithm)
+	cacheReadStats.AddDimension("cache_read_miss", "miss", netdata.IncrementalAlgorithm)
 	worker.AddChart(cacheReadStats)
 
 	// Cache chunks
@@ -112,65 +108,58 @@ func main() {
 	cacheChunks.AddDimension("cache_chunk_count", "chunks", netdata.AbsoluteAlgorithm)
 	worker.AddChart(cacheChunks)
 
-	FuseOps := []string{
-		" rename", "create", "fallocate", "flush", "forget", "fsync", "getattr", "getxattr",
-		"link", "listxattr", "lookup", "mkdir", "mknod", "open", "opendir", "read", "readdir", "readlink", "release",
-		"releasedir", "rmdir", "setattr", "setxattr", "statfs", "symlink", "unlink", "write",
-	}
+	if full {
+		// Fuse counters
+		fuseCount := netdata.NewChart(fsType, "fuse_count", "", "Fuse counters", "ops", family, "oiofs.fuse")
+		for _, op := range oiofs.Ops["fuseDebug"] {
+			fuseCount.AddDimension(
+				fmt.Sprintf("fuse_%s_count", op),
+				strings.TrimSpace(op),
+				netdata.IncrementalAlgorithm,
+			)
+		}
+		worker.AddChart(fuseCount)
 
-	// Fuse counters
-	fuseCount := netdata.NewChart(fsType, "fuse_count", "", "Fuse counters", "ops", family, "oiofs.fuse")
-	for _, op := range FuseOps {
-		fuseCount.AddDimension(
-			fmt.Sprintf("fuse_%s_count", op),
-			strings.TrimSpace(op),
-			netdata.IncrementalAlgorithm,
-		)
+		// Fuse latency
+		fuseLatency := netdata.NewChart(fsType, "fuse_latency", "", "Fuse latency", "us", family, "oiofs.fuse_latency")
+		for _, op := range oiofs.Ops["fuseDebug"] {
+			fuseLatency.AddDimension(
+				fmt.Sprintf("fuse_%s_total_us", op),
+				strings.TrimSpace(op),
+				netdata.AbsoluteAlgorithm,
+			)
+		}
+		worker.AddChart(fuseLatency)
 	}
-	worker.AddChart(fuseCount)
-
-	// Fuse latency
-	fuseLatency := netdata.NewChart(fsType, "fuse_latency", "", "Fuse latency", "us", family, "oiofs.fuse_latency")
-	for _, op := range FuseOps {
-		fuseLatency.AddDimension(
-			fmt.Sprintf("fuse_%s_total_us", op),
-			strings.TrimSpace(op),
-			netdata.AbsoluteAlgorithm,
-		)
-	}
-	worker.AddChart(fuseLatency)
 
 	// Fuse I/O
 	fuseIO := netdata.NewChart(fsType, "fuse_io", "", "Fuse I/O", "bytes", family, "oiofs.fuse")
 	fuseIO.AddDimension("fuse_read_total_byte", "read", netdata.IncrementalAlgorithm)
 	fuseIO.AddDimension("fuse_write_total_byte", "write", netdata.IncrementalAlgorithm)
 
-	SDSOps := []string{
-		"delete", "deleteAllContainers", "deleteFs", "flushContainer", "mkfs", "pad", "replace",
-		"replaceChunk", "replacePartialChunk", "statFs", "truncate", "download", "upload",
-	}
+	if full {
+		// SDS counters
+		sdsCount := netdata.NewChart(fsType, "sds_count", "", "SDS counters", "ops", family, "oiofs.sds")
+		for _, op := range oiofs.Ops["sdsDebug"] {
+			sdsCount.AddDimension(
+				fmt.Sprintf("sds_%s_count", strings.Title(op)),
+				strings.TrimSpace(op),
+				netdata.IncrementalAlgorithm,
+			)
+		}
+		worker.AddChart(sdsCount)
 
-	// SDS counters
-	sdsCount := netdata.NewChart(fsType, "sds_count", "", "SDS counters", "ops", family, "oiofs.sds")
-	for _, op := range SDSOps {
-		sdsCount.AddDimension(
-			fmt.Sprintf("sds_%s_count", strings.Title(op)),
-			strings.TrimSpace(op),
-			netdata.IncrementalAlgorithm,
-		)
+		// SDS latency
+		sdsLatency := netdata.NewChart(fsType, "sds_latency", "", "SDS latency", "us", family, "oiofs.sds_latency")
+		for _, op := range oiofs.Ops["sdsDebug"] {
+			sdsLatency.AddDimension(
+				fmt.Sprintf("fuse_%s_count", strings.Title(op)),
+				strings.TrimSpace(op),
+				netdata.IncrementalAlgorithm,
+			)
+		}
+		worker.AddChart(sdsLatency)
 	}
-	worker.AddChart(sdsCount)
-
-	// SDS latency
-	sdsLatency := netdata.NewChart(fsType, "sds_latency", "", "SDS latency", "us", family, "oiofs.sds_latency")
-	for _, op := range SDSOps {
-		sdsLatency.AddDimension(
-			fmt.Sprintf("fuse_%s_count", strings.Title(op)),
-			strings.TrimSpace(op),
-			netdata.IncrementalAlgorithm,
-		)
-	}
-	worker.AddChart(sdsLatency)
 
 	sdsUpload := netdata.NewChart(fsType, "sds_upload", "", "SDS uploads", "ops", family, "oiofs.sds_ul")
 	sdsUpload.AddDimension("sds_upload_failed", "failed", netdata.IncrementalAlgorithm)
