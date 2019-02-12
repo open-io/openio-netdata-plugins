@@ -1,49 +1,18 @@
-OpenIO Plugin for Netdata
+OpenIO Plugins for Netdata
 ===
 
 Description
 ---
 
-This plugin collects metrics from OpenIO services. Currently reported metrics are (more on their way):
+This plugin suite provides different collector to be used with openio products.
 
-- Rawx: Request/Response info, connexion info, volume info (via statfs)
-- Metax: Request/Response info, connexion info, volume info (via statfs)
-- Score (for all scored services)
-- Zookeeper metrics for local Zookeeper instances
-- Account container listing (account container count, size and object count for containers above threshold)
+Current collectors are:
 
-#### Zookeeper
-
-This plugin provides statistics from zookeeper server. Statistics are collected using `mntr` command.
-
-Charts:
-
-1. **latency** - latency in milliseconds
- * min
- * max
- * avg
-
-2. **packets** - packets stats in packets/s
- * received
- * sent
-
-3. **connections** - connections count
- * alive
-
-4. **requests** - requests count
- * outstanding
-
-5. **nodes** - nodes count
- * znode
- * watch
- * ephemeral
-
-6. **data** - data size
- * size
-
-7. **fds** - file descriptors count
- * open
- * max
+- openio (SDS conscience and service metrics)
+- container (SDS stored data information)
+- zookeeper (Zookeeper metrics)
+- command (Arbitrary commands, used for version information)
+- fs (Filesystem connector metrics)
 
 Install
 ---
