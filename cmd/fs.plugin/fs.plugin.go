@@ -43,10 +43,6 @@ func main() {
 	fs.Parse(os.Args[2:])
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
-	// if !regexp.MustCompile(`(?m)^[a-zA-z0-9]+$`).MatchString(id) {
-	// 	log.Fatalln("id must be alphanumeric")
-	// }
-
 	writer := netdata.NewDefaultWriter()
 	collector := oiofs.NewCollector(addr, full)
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer, collector)
