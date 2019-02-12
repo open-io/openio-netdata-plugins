@@ -17,14 +17,11 @@
 package oiofs
 
 import (
-	// "oionetdata/netdata"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 	"testing"
-	// "time"
-    "net/http"
-    "fmt"
-    "io/ioutil"
-    "strconv"
-    // "log"
 )
 
 var testAddr = "localhost:6999"
@@ -38,70 +35,70 @@ func newTestServer(specFile string) *testServer {
 }
 
 func (s *testServer) Run() {
-    http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-        b, err := ioutil.ReadFile(s.specFile)
-        if err != nil {
-            fmt.Print(err)
-        }
-        fmt.Fprintf(w, string(b))
-    })
-    http.ListenAndServe(fmt.Sprintf(testAddr), nil)
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		b, err := ioutil.ReadFile(s.specFile)
+		if err != nil {
+			fmt.Print(err)
+		}
+		fmt.Fprintf(w, string(b))
+	})
+	http.ListenAndServe(fmt.Sprintf(testAddr), nil)
 }
 
 func TestOiofsCollector(t *testing.T) {
-    srv := newTestServer("./oiofs.spec.json")
+	srv := newTestServer("./oiofs.spec.json")
 	go srv.Run()
 
-    tests := []map[string]int64 {
-        map[string]int64 {
-            "sds_upload_total_byte": 1234,
-            "fuse_write_total_byte": 0,
-            "cache_chunk_avg_age_microseconds": 0,
-            // Debug options
-            "fuse_flush_total_us": -1,
-            "fuse_create_count": -1,
-            "Meta_init_ctx_count": -1,
-            "Meta_SetLink_total_us": -1,
-            "sds_StatFs_total_us": -1,
-            "fuse_flush_max_us": -1,
-            "sds_StatFs_avg_us": -1,
-        },
-        map[string]int64 {
-            "sds_upload_total_byte": 1234,
-            "fuse_write_total_byte": 0,
-            "cache_chunk_avg_age_microseconds": 0,
-            // Debug options
-            "fuse_flush_total_us": 0,
-            "fuse_create_count": 0,
-            "Meta_init_ctx_count": 1,
-            "Meta_SetLink_total_us": 0,
-            "sds_StatFs_total_us": 0,
-            "fuse_flush_max_us": -1,
-            "sds_StatFs_avg_us": -1,
-        },
-    }
+	tests := []map[string]int64{
+		map[string]int64{
+			"sds_upload_total_byte":            1234,
+			"fuse_write_total_byte":            0,
+			"cache_chunk_avg_age_microseconds": 0,
+			// Debug options
+			"fuse_flush_total_us":   -1,
+			"fuse_create_count":     -1,
+			"Meta_init_ctx_count":   -1,
+			"Meta_SetLink_total_us": -1,
+			"sds_StatFs_total_us":   -1,
+			"fuse_flush_max_us":     -1,
+			"sds_StatFs_avg_us":     -1,
+		},
+		map[string]int64{
+			"sds_upload_total_byte":            1234,
+			"fuse_write_total_byte":            0,
+			"cache_chunk_avg_age_microseconds": 0,
+			// Debug options
+			"fuse_flush_total_us":   0,
+			"fuse_create_count":     0,
+			"Meta_init_ctx_count":   1,
+			"Meta_SetLink_total_us": 0,
+			"sds_StatFs_total_us":   0,
+			"fuse_flush_max_us":     -1,
+			"sds_StatFs_avg_us":     -1,
+		},
+	}
 
-    for _, test := range []int{0, 1} {
-        func(full int) {
-            c := NewCollector(testAddr, full == 1)
-        	res, err := c.Collect()
+	for _, test := range []int{0, 1} {
+		func(full int) {
+			c := NewCollector(testAddr, full == 1)
+			res, err := c.Collect()
 
-        	if err != nil {
-        		t.Fatal(err)
-        	}
+			if err != nil {
+				t.Fatal(err)
+			}
 
-            // Test returned data
-        	for k, v := range tests[full] {
-                if (v < 0) {
-                    if _, ok := res[k]; ok {
-                        t.Fatalf("Key %s shouldn't have been collected (full: %d)", k, full)
-                    }
-                } else {
-                    if v2, ok := res[k]; !ok || v2 != strconv.FormatInt(v, 10)  {
-            			t.Fatalf("Key %s not found in collected result data (full: %d)", k, full)
-            		}
-                }
-        	}
-        }(test)
-    }
+			// Test returned data
+			for k, v := range tests[full] {
+				if v < 0 {
+					if _, ok := res[k]; ok {
+						t.Fatalf("Key %s shouldn't have been collected (full: %d)", k, full)
+					}
+				} else {
+					if v2, ok := res[k]; !ok || v2 != strconv.FormatInt(v, 10) {
+						t.Fatalf("Key %s not found in collected result data (full: %d)", k, full)
+					}
+				}
+			}
+		}(test)
+	}
 }
