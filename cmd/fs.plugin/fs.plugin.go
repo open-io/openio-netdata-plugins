@@ -131,6 +131,7 @@ func main() {
 	fuseIO := netdata.NewChart(fsType, "fuse_io", "", "Fuse I/O", "bytes", family, "oiofs.fuse")
 	fuseIO.AddDimension("fuse_read_total_byte", "read", netdata.IncrementalAlgorithm)
 	fuseIO.AddDimension("fuse_write_total_byte", "write", netdata.IncrementalAlgorithm)
+	worker.AddChart(fuseIO)
 
 	if full {
 		// SDS counters
@@ -169,7 +170,7 @@ func main() {
 	sdsData := netdata.NewChart(fsType, "sds_data", "", "SDS data", "bytes", family, "oiofs.sds")
 	sdsData.AddDimension("sds_download_total_byte", "download", netdata.IncrementalAlgorithm)
 	sdsData.AddDimension("sds_upload_total_byte", "upload", netdata.IncrementalAlgorithm)
-	worker.AddChart(sdsDownload)
+	worker.AddChart(sdsData)
 
 	worker.Run()
 }
