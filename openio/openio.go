@@ -205,7 +205,7 @@ func volumeInfo(service string, ns string, volume string, c chan netdata.Metric)
 		return
 	}
 	for dim, val := range info {
-		netdata.Update(dim, util.SID(service, ns, fsid), fmt.Sprint(val), c)
+		netdata.Update(dim, util.SID(service, ns, fsid + "." + volume), fmt.Sprint(val), c)
 	}
 }
 
