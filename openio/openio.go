@@ -29,10 +29,15 @@ import (
 
 type serviceType []string
 
+type serviceTag struct {
+	Location string `json:"tag.loc"`
+}
+
 type serviceInfo []struct {
 	Addr  string
 	Score int
 	Local bool
+	Tags serviceTag
 }
 
 type cntr struct {
@@ -221,7 +226,12 @@ func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metri
 		for i := range sInfo {
 			if util.IsSameHost(sInfo[i].Addr) {
 				sInfo[i].Local = true
-				netdata.Update("score", util.SID(sType+"_"+sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+				netdata.Update("score",
+					util.SID(
+						sType+"_"+sInfo[i].Addr,
+						ns,
+						util.FmtLocation(sInfo[i].Tags.Location),
+					), fmt.Sprint(sInfo[i].Score), c)
 			} else {
 				sInfo[i].Local = false
 			}

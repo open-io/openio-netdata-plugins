@@ -116,10 +116,15 @@ func RaiseIf(err error) {
 	}
 }
 
+// FmtLocation -- format location string
+func FmtLocation(location string) string {
+	return strings.Replace(location, ".", "/", -1)
+}
+
 // SID -- Get a service ID for netdata
-func SID(service string, ns string, volume ...string) string {
-	if (len(volume) > 0) && (volume[0] != "") {
-		return fmt.Sprintf("%s.%s.%s", ns, mReplacer.Replace(service), volume[0])
+func SID(service string, ns string, extra ...string) string {
+	if (len(extra) > 0) && (extra[0] != "") {
+		return fmt.Sprintf("%s.%s.%s", ns, mReplacer.Replace(service), extra[0])
 	}
 	return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(service))
 }
