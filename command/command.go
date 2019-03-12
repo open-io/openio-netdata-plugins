@@ -90,12 +90,12 @@ func (c *collector) Collect() (map[string]string, error) {
 }
 
 func (c *collector) runCommand(cmd string) (string, error) {
-	// TODO: Support multiple shells?
 	out, err := exec.Command("/bin/bash", "-c", cmd).Output()
 	if err != nil {
 		return "", err
 	}
-	outFmt := strings.TrimSuffix(string(out), "\n")
+	outFmt := strings.Trim(
+		strings.TrimSuffix(string(out), "\n"), " ")
 
 	return outFmt, nil
 }
