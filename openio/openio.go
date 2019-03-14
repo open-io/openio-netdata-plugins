@@ -135,6 +135,9 @@ func Collect(proxyURL string, ns string, c chan netdata.Metric) {
 			for sc := range sInfo {
 				if sInfo[sc].Local {
 					go collectMetax(ns, sInfo[sc].Addr, proxyURL, c)
+					if sType[t] == "meta2" {
+						go collectMeta2Info(ns, sInfo[sc].Addr, proxyURL, c)
+					}
 				}
 			}
 		}
@@ -192,9 +195,34 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 			}
 		} else if s[1] == "volume" {
 			go volumeInfo(service, ns, s[2], c)
-		} else if s[0] == "gauge" {
-			// TODO: do something with gauge?
 		}
+	}
+}
+
+type metaxInfoBody struct {
+	Cache map[string]int64
+	Elections map[string]int64
+}
+
+func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
+	url := fmt.Sprintf("http://%s/v3.0/forward/info?id=%s", proxyURL, service)
+	sid := util.SID(service, ns)
+	info := metaxInfoBody{}
+
+	res, err := util.HTTPGet(url)
+
+	if err != nil {
+		// TODO handle err
+		return
+	}
+
+	util.RaiseIf(json.Unmarshal([]byte(res), &info))
+
+	for dim, val := range(info.Cache) {
+		netdata.Update(fmt.Sprintf("meta2_cache_bases_%s", dim), sid, fmt.Sprint(val), c)
+	}
+	for dim, val := range(info.Elections) {
+		netdata.Update(fmt.Sprintf("meta2_elections_%s", dim), sid, fmt.Sprint(val), c)
 	}
 }
 
