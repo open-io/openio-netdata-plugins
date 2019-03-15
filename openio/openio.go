@@ -19,6 +19,7 @@ package openio
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"oionetdata/netdata"
 	"oionetdata/util"
 	"path"
@@ -162,6 +163,7 @@ func collectRawx(ns string, service string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/stat", service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
+		log.Printf("DEBUG: rawx metric collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
@@ -184,6 +186,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	url := fmt.Sprintf("http://%s/v3.0/forward/stats?id=%s", proxyURL, service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
+		log.Printf("DEBUG: metax stats collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
@@ -200,7 +203,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 }
 
 type metaxInfoBody struct {
-	Cache map[string]int64
+	Cache     map[string]int64
 	Elections map[string]int64
 }
 
@@ -212,16 +215,19 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 	res, err := util.HTTPGet(url)
 
 	if err != nil {
-		// TODO handle err
+		log.Printf("DEBUG: meta2 info collection failed", err)
 		return
 	}
 
-	util.RaiseIf(json.Unmarshal([]byte(res), &info))
+	if err = json.Unmarshal([]byte(res), &info); err != nil {
+		log.Printf("DEBUG: meta2 info collection failed", err)
+		return
+	}
 
-	for dim, val := range(info.Cache) {
+	for dim, val := range info.Cache {
 		netdata.Update(fmt.Sprintf("meta2_cache_bases_%s", dim), sid, fmt.Sprint(val), c)
 	}
-	for dim, val := range(info.Elections) {
+	for dim, val := range info.Elections {
 		netdata.Update(fmt.Sprintf("meta2_elections_%s", dim), sid, fmt.Sprint(val), c)
 	}
 }
@@ -229,7 +235,7 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
 	info, fsid, err := util.VolumeInfo(volume)
 	if err != nil {
-		// TODO handle err
+		log.Printf("DEBUG: volume info collection failed", err)
 		return
 	}
 	for dim, val := range info {
