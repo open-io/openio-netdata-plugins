@@ -80,16 +80,19 @@ func ProxyAddr(basePath string, ns string) (string, error) {
 
 // ZookeeperAddr retrieves local zookeeper address from namespace configuration
 func ZookeeperAddr(basePath string, ns string) (string, error) {
+	const clusterSep = ";"
+	const addrSep = ","
 	conf, err := util.ReadConf(path.Join(basePath, ns), "=")
 	if err != nil {
 		return "", err
 	}
 	zkStr := conf["zookeeper"]
 	if len(zkStr) != 0 {
-		zkAddrs := strings.Split(conf["zookeeper"], ",")
-		for _, zkAddr := range zkAddrs {
-			if util.IsSameHost(zkAddr) {
-				return zkAddr, nil
+		for _, zkCluster := range strings.Split(conf["zookeeper"], clusterSep) {
+			for _, zkAddr := range strings.Split(zkCluster, addrSep) {
+				if util.IsSameHost(zkAddr) {
+					return zkAddr, nil
+				}
 			}
 		}
 	}
