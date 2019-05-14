@@ -28,7 +28,7 @@ func (w *FakeWorker) SinceLastRun() time.Duration {
 	return 1000 * time.Second
 }
 
-func (w *FakeWorker) AddChart(chart *netdata.Chart) {
+func (w *FakeWorker) AddChart(chart *netdata.Chart, collector ...netdata.Collector) {
 	return
 }
 

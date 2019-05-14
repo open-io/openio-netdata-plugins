@@ -132,6 +132,24 @@ func AcctID(ns string, acct string, cont ...string) string {
 	return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(acct))
 }
 
+// Commands retrieves commands to execute on each node
+func Commands(path string) (map[string]string, error) {
+	conf, err := ReadConf(path, "=")
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
+// OiofsEndpoints retrieves oiofs endpoints to monitor
+func OiofsEndpoints(path string) (map[string]string, error) {
+	conf, err := ReadConf(path, "=")
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
 func ReadConf(path string, separator string) (map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
