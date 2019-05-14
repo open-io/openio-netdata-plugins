@@ -44,6 +44,8 @@ type Chart struct {
 	refresh bool
 }
 
+type Charts map[string]*Chart
+
 func NewChart(chartType, id, name, title, units, family, category string) *Chart {
 	return &Chart{
 		Type:       chartType,
@@ -114,5 +116,3 @@ func (c *Chart) Update(data map[string]string, interval time.Duration, out Write
 
 	return false
 }
-
-type Charts map[string]*Chart
