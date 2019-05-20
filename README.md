@@ -13,6 +13,7 @@ Current collectors are:
 - zookeeper (Zookeeper metrics)
 - command (Arbitrary commands, used for version information)
 - fs (Filesystem connector metrics)
+- s3roundtrip (S3 roundtrip check using AWS SDK)
 
 Install
 ---
@@ -21,6 +22,7 @@ Install
 - go 1.8+ (additional testing required for earlier versions)
 - netdata 1.7+
 - (*optional*) influxdb
+- go get github.com/golang/mock/gomock for tests
 
 
 #### Build:
@@ -29,19 +31,15 @@ Install
 $ cd
 $ git clone [this repo] go/src/oionetdata
 $ go get github.com/go-redis/redis
+$ go get github.com/aws/aws-sdk-go
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
-$ go build ./cmd/openio.plugin/openio.plugin.go; go build ./cmd/zookeeper.plugin/zookeeper.plugin.go; go build ./cmd/container.plugin/container.plugin.go
-```
-
-Test-run the plugins (Abort with Ctrl+C):
-
-> As metrics are gathered for __local services__, there might not be any output from those plugins on the test machine (e.g. if it isn't an OpenIO node). Also make sure you have a valid OPENIO config file in `/etc/oio/sds.conf.d/OPENIO`. The only exception is the __container__ plugin, which requires a local redis and a redis configuration file in `/etc/oio/sds/OPENIO/redis-X/redis.conf`.
-
-```sh
-$ ./openio.plugin 1 --ns OPENIO
-$ ./zookeeper.plugin 1 --ns OPENIO
-$ ./container.plugin 10 --ns OPENIO
+$ go build ./cmd/openio.plugin/openio.plugin.go;
+$ go build ./cmd/zookeeper.plugin/zookeeper.plugin.go;
+$ go build ./cmd/container.plugin/container.plugin.go
+$ go build ./cmd/command.plugin/command.plugin.go
+$ go build ./cmd/oiofs.plugin/oiofs.plugin.go
+$ go build ./cmd/s3roundtrip.plugin/s3roundtrip.plugin.go
 ```
 
 Type in `./[name].plugin -h` to get all available options for each plugin
@@ -53,6 +51,9 @@ CentOS 7
 $ cp openio.plugin /usr/libexec/netdata/plugins.d/
 $ cp zookeeper.plugin /usr/libexec/netdata/plugins.d/
 $ cp container.plugin /usr/libexec/netdata/plugins.d/
+$ cp command.plugin /usr/libexec/netdata/plugins.d/
+$ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
+$ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Ubuntu Xenial
@@ -60,6 +61,9 @@ Ubuntu Xenial
 $ cp openio.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
 $ cp zookeeper.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
 $ cp container.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
+$ cp command.plugin /usr/libexec/netdata/plugins.d/
+$ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
+$ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
@@ -75,7 +79,49 @@ Add the following /etc/netdata/netdata.conf:
 [plugin:container]
     update every = 60
     command options = --ns OPENIO --threshold 0 --limit 1000
+
+[plugin:command]
+    update every = 10
+    command options =
+
+[plugin:fs]
+    update every = 10
+
+[plugin:s3roundtrip]
+    update every = 10
 ```
+
+Create and configure plugin config files
+
+```
+# /etc/netdata/s3-roundtrip.conf
+endpoint=http://localhost:6007
+access=
+secret=
+region=us-east-1
+bucket=bucket-roundtrip
+object=file-roundtrip
+timeout=3
+```
+
+```
+# /etc/netdata/commands.conf
+openio_version=rpm -q --qf "%{VERSION}\n" openio-sds-server
+swift_version=rpm -q --qf "%{VERSION}\n" openio-sds-swift
+s3_version=rpm -q --qf "%{VERSION}\n" openio-sds-swift-plugin-swift3
+redis_version=redis-server --version | grep -oP ' v=\K.+? '
+zk_version=rpm -q --qf "%{VERSION}\n" zookeeper
+zk_lib_version=rpm -q --qf "%{VERSION}\n" zookeeper-lib
+beanstalkd_version=beanstalkd -v | awk '{print $2}'
+oiofs_version=rpm -q --qf "%{VERSION}\n" oiofs-fuse
+keystone_version=keystone-manage --version
+```
+
+```
+# /etc/netdata/oiofs.conf
+/mnt/test=localhost:9000
+```
+
 
 > Replace OPENIO with your namespace name. If you have multiple namespaces on the machine, join the names with ":" (e.g. `command options = --ns OPENIO:OPENIO2`)
 
@@ -86,108 +132,27 @@ Restart netdata:
 $ systemctl restart netdata
 ```
 
-Head to the dashboard at http://[IP]:19999, and look for an __openio__ section.
-
-InfluxDB
+Tests
 ---
 
-> We suppose that an InfluxDB is installed on the same machine
+Modules can be tested by running `go test oionetdata/[module]`
 
-To integrate with InfluxDB, first enable the graphite backend in `/etc/netdata/netdata.conf`:
-
-
-```ini
-[backend]
-     enabled = yes
-     type = graphite
-     destination = localhost
-     prefix = netdata
-     send charts matching = openio.*
-```
-
-Then in `/etc/influxdb/influxdb.conf`, add the following to graphite > templates:
-
-```ini
-"netdata.*.openio.container_bytes.*.*.* .host.measurement.measurement.ns.account.container",
-"netdata.*.openio.container_objects.*.*.* .host.measurement.measurement.ns.account.container",
-"netdata.*.openio.container_count.*.* .host.measurement.measurement.ns.account",
-"netdata.*.openio.*.*.*.*.host.measurement.measurement.ns.service.volume",
-"netdata.*.openio.*.*.*.host.measurement.measurement.ns.service",
-```
-
-Restart both netdata and influxdb:
+Mocks for S3 plugin have been generated as follows:
 
 ```sh
-$ systemctl restart netdata influxdb
-```
-
-Query InfluxDB for the newly stored metrics:
-
-```sh
-$ curl -G 'http://localhost:8086/query?pretty=true' --data-urlencode "db=graphite" --data-urlencode "q=SELECT * from openio_byte_used limit 3"
-{
-    "results": [
-        {
-            "statement_id": 0,
-            "series": [
-                {
-                    "name": "openio_byte_used",
-                    "columns": [
-                        "time",
-                        "host",
-                        "ns",
-                        "service",
-                        "value",
-                        "volume"
-                    ],
-                    "values": [
-                        [
-                            "2017-12-04T21:38:32Z",
-                            "myhost",
-                            "OPENIO",
-                            "192_168_50_2_6001",
-                            0,
-                            "_var_lib_oio_sds_OPENIO_meta0_0"
-                        ],
-                        [
-                            "2017-12-04T21:38:32Z",
-                            "myhost",
-                            "OPENIO",
-                            "192_168_50_2_6004",
-                            0,
-                            "_var_lib_oio_sds_OPENIO_rawx_0"
-                        ],
-                        [
-                            "2017-12-04T21:38:32Z",
-                            "myhost",
-                            "OPENIO",
-                            "192_168_50_2_6002",
-                            0,
-                            "_var_lib_oio_sds_OPENIO_meta1_0"
-                        ]
-                    ]
-                }
-            ]
-        }
-    ]
-}
+mockgen github.com/aws/aws-sdk-go/service/s3/s3iface S3API > s3roundtrip/mocks.go
 ```
 
 TODO
 ---
 
-- Tests
-- ~~Tag services with volume information~~
-- ~~Make it work with InfluxDB~~
-- ~~More collectors: ZK~~
-- ~~More collectors: container~~
+- Tests for openio/container
 - Reload/Update mechanism
 - Automatic namespace detection
 - Container: cache containers above threshold, separate slow/fast listing
 - Container: consider connecting to sentinel via FailoverClient
-- OpenIO: implement error handling
-- Zookeeper: implement error handling
-- Container: improve error handling
+- improve error handling
+- Migrate modules to new API (openio, container)
 
 License
 ---
