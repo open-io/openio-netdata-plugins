@@ -132,6 +132,15 @@ func AcctID(ns string, acct string, cont ...string) string {
 	return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(acct))
 }
 
+// S3RoundtripConfig returns the S3 credentials and endpoint
+func S3RoundtripConfig(path string) (map[string]string, error) {
+	conf, err := ReadConf(path, "=")
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
 func ReadConf(path string, separator string) (map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
