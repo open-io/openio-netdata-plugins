@@ -25,6 +25,12 @@ import (
 	"strings"
 )
 
+// Endpoint defined an oiofs endpoint to monitor
+type Endpoint struct {
+	URL  string
+	Path string
+}
+
 // Ops defines all possible metrics
 var Ops = map[string][]string{
 	"metaPrefix": []string{"Meta"},
@@ -58,12 +64,12 @@ var Ops = map[string][]string{
 }
 
 type collector struct {
-	addr      string
+	endpoint  Endpoint
 	full      bool
 	whitelist map[string]int64
 }
 
-func NewCollector(addr string, full bool) *collector {
+func NewCollector(endpoint Endpoint, full bool) *collector {
 	var whitelist = map[string]int64{}
 	// Generate whitelist of metrics to keep
 	for _, p := range []string{"meta", "sds", "fuse", "cache"} {
@@ -83,7 +89,7 @@ func NewCollector(addr string, full bool) *collector {
 	}
 
 	return &collector{
-		addr:      addr,
+		endpoint:  endpoint,
 		full:      full,
 		whitelist: whitelist,
 	}
@@ -91,7 +97,8 @@ func NewCollector(addr string, full bool) *collector {
 
 func (c *collector) Collect() (map[string]string, error) {
 	// TODO: support v2
-	r, err := http.Get(fmt.Sprintf("http://%s/stats", c.addr))
+
+	r, err := http.Get(fmt.Sprintf("http://%s/stats", c.endpoint.URL))
 	if err != nil {
 		return nil, err
 	}
@@ -117,5 +124,6 @@ func (c *collector) Collect() (map[string]string, error) {
 			res[k] = "0"
 		}
 	}
+
 	return res, nil
 }

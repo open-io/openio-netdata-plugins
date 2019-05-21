@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"oionetdata/collector"
-	"oionetdata/netdata"
-	"oionetdata/openio"
 	"oionetdata/command"
+	"oionetdata/netdata"
+	"oionetdata/util"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 
 	cmds := make(map[string]command.Command)
 
-	out, err := openio.Commands(conf)
+	out, err := util.Commands(conf)
 	if err != nil {
 		log.Fatalln("ERROR: Command plugin: Could not load commands", err)
 	}
@@ -54,7 +54,7 @@ func main() {
 	log.Printf("INFO: Command plugin: Loaded %d commands", len(cmds))
 
 	writer := netdata.NewDefaultWriter()
-	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer, nil)
+	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer)
 	collector := command.NewCollector(cmds, cmdInterval, worker)
 	worker.SetCollector(collector)
 

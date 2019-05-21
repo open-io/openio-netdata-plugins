@@ -24,30 +24,37 @@ import (
 	"testing"
 )
 
-var testAddr = "localhost:6999"
+var testEndpoints = []Endpoint{
+	{Path: "/mnt/test", URL: "localhost:7000"},
+	{Path: "/mnt/test2", URL: "localhost:7001"},
+}
 
 type testServer struct {
 	specFile string
+	addr     string
 }
 
-func newTestServer(specFile string) *testServer {
-	return &testServer{specFile: specFile}
+func newTestServer(specFile string, addr string) *testServer {
+	return &testServer{specFile: specFile, addr: addr}
 }
 
 func (s *testServer) Run() {
-	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+	server := http.NewServeMux()
+	server.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
 		b, err := ioutil.ReadFile(s.specFile)
 		if err != nil {
 			fmt.Print(err)
 		}
 		fmt.Fprintf(w, string(b))
 	})
-	http.ListenAndServe(fmt.Sprintf(testAddr), nil)
+	http.ListenAndServe(s.addr, server)
 }
 
 func TestOiofsCollector(t *testing.T) {
-	srv := newTestServer("./oiofs.spec.json")
+	srv := newTestServer("./oiofs.spec.json", "localhost:7000")
 	go srv.Run()
+	srv2 := newTestServer("./oiofs.spec.json", "localhost:7001")
+	go srv2.Run()
 
 	tests := []map[string]int64{
 		map[string]int64{
@@ -80,22 +87,24 @@ func TestOiofsCollector(t *testing.T) {
 
 	for _, test := range []int{0, 1} {
 		func(full int) {
-			c := NewCollector(testAddr, full == 1)
-			res, err := c.Collect()
+			for _, endpoint := range testEndpoints {
+				c := NewCollector(endpoint, full == 1)
+				res, err := c.Collect()
 
-			if err != nil {
-				t.Fatal(err)
-			}
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			// Test returned data
-			for k, v := range tests[full] {
-				if v < 0 {
-					if _, ok := res[k]; ok {
-						t.Fatalf("Key %s shouldn't have been collected (full: %d)", k, full)
-					}
-				} else {
-					if v2, ok := res[k]; !ok || v2 != strconv.FormatInt(v, 10) {
-						t.Fatalf("Key %s not found in collected result data (full: %d)", k, full)
+				// Test returned data
+				for k, v := range tests[full] {
+					if v < 0 {
+						if _, ok := res[k]; ok {
+							t.Fatalf("Key %s shouldn't have been collected (full: %d)", k, full)
+						}
+					} else {
+						if v2, ok := res[k]; !ok || v2 != strconv.FormatInt(v, 10) {
+							t.Fatalf("Key %s not found in collected result data (full: %d)", k, full)
+						}
 					}
 				}
 			}

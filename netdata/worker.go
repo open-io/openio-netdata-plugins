@@ -17,6 +17,7 @@
 package netdata
 
 import (
+	"fmt"
 	"log"
 	"time"
 )
@@ -38,29 +39,50 @@ type worker struct {
 	elapsed time.Duration
 
 	charts      Charts
-	chartsIndex []string
+	chartsIndex map[Collector][]string
 
 	writer Writer
 
-	collector Collector
+	collector  Collector // Legacy attr, use collector
+	collectors []Collector
 }
 
-func NewWorker(interval time.Duration, writer Writer, collector Collector) *worker {
-	return &worker{
-		interval:  interval,
-		writer:    writer,
-		collector: collector,
-		charts:    make(map[string]*Chart),
+func NewWorker(interval time.Duration, writer Writer, collectors ...Collector) *worker {
+	w := worker{
+		interval:    interval,
+		writer:      writer,
+		charts:      make(map[string]*Chart),
+		chartsIndex: make(map[Collector][]string),
 	}
+	if len(collectors) > 0 {
+		w.collector = collectors[0]
+		w.collectors = append(w.collectors, collectors[0])
+	}
+	return &w
 }
 
+// Legacy method, use AddCollector
 func (w *worker) SetCollector(collector Collector) {
 	w.collector = collector
+	w.collectors = append(w.collectors, collector)
 }
 
-func (w *worker) AddChart(chart *Chart) {
-	w.chartsIndex = append(w.chartsIndex, chart.ID)
-	w.charts[chart.ID] = chart
+func (w *worker) AddCollector(collector Collector) {
+	w.collectors = append(w.collectors, collector)
+}
+
+func (w *worker) AddChart(chart *Chart, params ...Collector) {
+	collector := w.collector
+	if len(params) > 0 {
+		collector = params[0]
+	}
+	chartID := fmt.Sprintf("%s_%s", chart.ID, chart.Family)
+	w.indexChart(chartID, collector)
+	w.charts[chartID] = chart
+}
+
+func (w *worker) indexChart(chartID string, collector Collector) {
+	w.chartsIndex[collector] = append(w.chartsIndex[collector], chartID)
 }
 
 func (w *worker) SinceLastRun() time.Duration {
@@ -86,10 +108,7 @@ func (w *worker) process() {
 	if !w.lastUpdate.IsZero() {
 		sinceUpdate = w.startRun.Sub(w.lastUpdate)
 	}
-	updated, err := w.update(sinceUpdate)
-	if err != nil {
-		log.Printf("Failed to update: %v", err)
-	}
+	updated, _ := w.update(sinceUpdate)
 
 	w.runs++
 
@@ -107,21 +126,29 @@ func (w *worker) sleep(sleepTime time.Duration) {
 }
 
 func (w *worker) update(interval time.Duration) (bool, error) {
-	data, err := w.collector.Collect()
-	if err != nil {
-		return false, err
-	}
-
 	updated := false
 
-	for _, chartID := range w.chartsIndex {
-		chart := w.charts[chartID]
-		updated = chart.Update(data, interval, w.writer)
-	}
+	for _, collector := range w.collectors {
+		data, err := collector.Collect()
+		if err != nil {
+			log.Printf("Failed to update: %v", err)
+			continue
+		}
 
-	if !updated {
-		log.Printf("DEBUG: no charts updated")
-	}
+		if _, ok := w.chartsIndex[collector]; ok {
+			for _, chartID := range w.chartsIndex[collector] {
+				chart := w.charts[chartID]
+				updated = chart.Update(data, interval, w.writer)
+			}
+		} else {
+			log.Printf("Failed to update: collector not found")
+			log.Println(collector)
+			log.Println(w.chartsIndex)
+		}
 
+		if !updated {
+			log.Printf("DEBUG: no charts updated")
+		}
+	}
 	return updated, nil
 }

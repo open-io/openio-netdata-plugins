@@ -33,7 +33,7 @@ type Command struct {
 
 type Worker interface {
 	SinceLastRun() time.Duration
-	AddChart(chart *netdata.Chart)
+	AddChart(chart *netdata.Chart, collector ...netdata.Collector)
 }
 
 type collector struct {
