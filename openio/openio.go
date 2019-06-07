@@ -157,12 +157,15 @@ func collectRawx(ns string, service string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/stat", service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
-		log.Printf("DEBUG: rawx metric collection failed", err)
+		log.Println("DEBUG: rawx metric collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
+		if len(s) < 3 {
+			continue
+		}
 		if s[0] == "counter" {
 			if diff := diffCounter(s[1], util.SID(service, ns), s[2]); diff != "" {
 				netdata.Update(s[1], util.SID(service, ns), diff, c)
@@ -180,7 +183,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	url := fmt.Sprintf("http://%s/v3.0/forward/stats?id=%s", proxyURL, service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
-		log.Printf("DEBUG: metax stats collection failed", err)
+		log.Println("DEBUG: metax stats collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
@@ -212,12 +215,12 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 	res, err := util.HTTPGet(url)
 
 	if err != nil {
-		log.Printf("DEBUG: meta2 info collection failed", err)
+		log.Println("DEBUG: meta2 info collection failed", err)
 		return
 	}
 
 	if err = json.Unmarshal([]byte(res), &info); err != nil {
-		log.Printf("DEBUG: meta2 info collection failed", err)
+		log.Println("DEBUG: meta2 info collection failed", err)
 		return
 	}
 
@@ -232,7 +235,7 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
 	info, fsid, err := util.VolumeInfo(volume)
 	if err != nil {
-		log.Printf("DEBUG: volume info collection failed", err)
+		log.Println("DEBUG: volume info collection failed", err)
 		return
 	}
 	for dim, val := range info {
