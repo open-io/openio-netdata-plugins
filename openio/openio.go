@@ -192,6 +192,9 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	var lines = strings.Split(res, "\n")
 	for i := range lines {
 		s := strings.Split(lines[i], " ")
+		if len(s) < 3 {
+			continue
+		}
 		if s[0] == "counter" {
 			if diff := diffCounter(s[1], util.SID(service, ns), s[2]); diff != "" {
 				netdata.Update(s[1], util.SID(service, ns), diff, c)
