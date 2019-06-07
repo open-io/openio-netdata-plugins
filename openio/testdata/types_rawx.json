@@ -1,0 +1,13 @@
+[
+    {
+        "addr": "127.0.0.1:6006",
+        "score": 78,
+        "tags": {
+            "tag.lock": true,
+            "tag.loc": "server.1",
+            "tag.slots": "rawx",
+            "tag.vol": "/mnt/hdd1/OPENIO/rawx-1",
+            "tag.up": true
+        }
+    }
+]
