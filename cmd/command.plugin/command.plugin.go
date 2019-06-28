@@ -37,7 +37,10 @@ func main() {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.Int64Var(&cmdInterval, "interval", 3600, "Interval between commands in seconds")
 	fs.StringVar(&conf, "conf", "/etc/netdata/commands.conf", "Command configuration file")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: Command plugin: Could not parse args", err)
+	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	cmds := make(map[string]command.Command)

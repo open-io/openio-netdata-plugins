@@ -39,7 +39,10 @@ func main() {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&conf, "conf", "/etc/netdata/oiofs.conf", "Path to endpoint config file")
 	fs.BoolVar(&full, "full", false, "Gather all metrics")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: Command plugin: Could not parse args", err)
+	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	var endpoints []oiofs.Endpoint
