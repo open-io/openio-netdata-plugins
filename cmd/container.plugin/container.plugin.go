@@ -45,7 +45,10 @@ func main() {
 	fs.Int64Var(&limit, "limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
 	fs.Int64Var(&threshold, "threshold", 3e5, "Minimal number of objects in container to report it")
 	fs.BoolVar(&fast, "fast", false, "Use fast account listing")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: Container plugin: Could not parse args", err)
+	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	namespaces := strings.Split(ns, ":")

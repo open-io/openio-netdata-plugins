@@ -29,7 +29,6 @@ func (w *FakeWorker) SinceLastRun() time.Duration {
 }
 
 func (w *FakeWorker) AddChart(chart *netdata.Chart, collector ...netdata.Collector) {
-	return
 }
 
 func TestCommandCollector(t *testing.T) {

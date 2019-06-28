@@ -22,6 +22,7 @@ import (
 	"net"
 	"reflect"
 	"testing"
+	"log"
 )
 
 type testServer struct {
@@ -36,6 +37,7 @@ func (s *testServer) Run(l net.Listener) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
+			log.Printf("WARN: %s", err)
 			return
 		}
 		go s.handleConn(conn)
@@ -43,9 +45,19 @@ func (s *testServer) Run(l net.Listener) {
 }
 
 func (s *testServer) handleConn(conn net.Conn) {
+	data, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	if data != "mntr\n" {
+		log.Fatalf("Unknown command %s", data)
+	}
 	buf := bufio.NewWriter(conn)
 	for k, v := range s.data {
-		buf.WriteString(fmt.Sprintf("%v\t%v\n", k, v))
+		_, err := buf.WriteString(fmt.Sprintf("%v\t%v\n", k, v))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	buf.Flush()
 	conn.Close()
