@@ -90,7 +90,10 @@ bind 10.240.0.13
 				t.Fatalf("failed to create file: %v", err)
 			}
 
-			f.WriteString(tt.conf)
+			_, err = f.WriteString(tt.conf)
+			if err != nil {
+				t.Fatal(err)
+			}
 			f.Close()
 
 			separator := "="

@@ -36,7 +36,10 @@ func main() {
 	var conf string
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&conf, "conf", "/etc/netdata/s3-roundtrip.conf", "Path to roundtrip config file")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: S3Roundtrip plugin: Could not parse args", err)
+	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	writer := netdata.NewDefaultWriter()

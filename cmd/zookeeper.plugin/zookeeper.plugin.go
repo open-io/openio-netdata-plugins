@@ -39,7 +39,10 @@ func main() {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&ns, "ns", "OPENIO", "Namespace")
 	fs.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: Zookeeper plugin: Could not parse args", err)
+	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	addr, err := openio.ZookeeperAddr(conf, ns)
@@ -51,7 +54,7 @@ func main() {
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer, collector)
 
 	fAddr := strings.Replace(addr, ".", "_", -1)
-	fAddr = strings.Replace(addr, ":", "_", -1)
+	fAddr = strings.Replace(fAddr, ":", "_", -1)
 	zkType := fmt.Sprintf("zk_%s_%s", ns, fAddr)
 	family := "zookeeper"
 

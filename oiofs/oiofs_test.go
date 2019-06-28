@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strconv"
 	"testing"
+	"log"
 )
 
 var testEndpoints = []Endpoint{
@@ -47,7 +48,10 @@ func (s *testServer) Run() {
 		}
 		fmt.Fprintf(w, string(b))
 	})
-	http.ListenAndServe(s.addr, server)
+	err := http.ListenAndServe(s.addr, server)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func TestOiofsCollector(t *testing.T) {

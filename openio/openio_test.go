@@ -23,6 +23,7 @@ import (
 	"testing"
     "time"
     "oionetdata/netdata"
+	"log"
 )
 
 var testAddr = "127.0.0.1:6006"
@@ -74,7 +75,10 @@ func (s *testServer) Run() {
 		// }
 		// fmt.Fprintf(w, string(b))
 	})
-	http.ListenAndServe(fmt.Sprintf(testAddr), nil)
+	err := http.ListenAndServe(testAddr, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 

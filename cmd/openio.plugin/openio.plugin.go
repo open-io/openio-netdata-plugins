@@ -40,7 +40,10 @@ func main() {
 	fs.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
 	fs.StringVar(&conf, "conf", "/etc/oio/sds.conf.d/", "Path to SDS config")
 	fs.BoolVar(&remote, "remote", false, "Force remote metric collection")
-	fs.Parse(os.Args[2:])
+	err := fs.Parse(os.Args[2:])
+	if err != nil {
+		log.Fatalln("ERROR: OpenIO plugin: Could not parse args", err)
+	}
 	interval := collector.ParseIntervalSeconds(os.Args[1])
 
 	util.ForceRemote = remote

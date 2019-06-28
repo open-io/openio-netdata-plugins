@@ -37,9 +37,11 @@ func (c *collector) Collect() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
-	conn.Write([]byte("mntr\n"))
+	_, err = conn.Write([]byte("mntr\n"))
+	if err != nil {
+		return nil, err
+	}
 
 	data := make(map[string]string)
 	scanner := bufio.NewScanner(conn)
@@ -51,6 +53,7 @@ func (c *collector) Collect() (map[string]string, error) {
 		}
 		data[kv[0]] = kv[1]
 	}
+	conn.Close()
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
