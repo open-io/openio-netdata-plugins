@@ -1,0 +1,30 @@
+dist: xenial
+
+language: go
+
+env:
+  # - GO111MODULE=on
+  # - GOFLAGS='-mod vendor'
+
+go:
+  - 1.11.x
+
+git:
+  depth: 1
+
+install: true
+
+notifications:
+  email: false
+
+before_script:
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint
+  - go get github.com/go-redis/redis
+  - go get github.com/aws/aws-sdk-go
+  - go get github.com/golang/mock/gomock
+
+script:
+  - cp -r $TRAVIS_BUILD_DIR /home/travis/gopath/src/oionetdata
+  - cd /home/travis/gopath/src/oionetdata
+  - golangci-lint run
+  - go test -v ./...
