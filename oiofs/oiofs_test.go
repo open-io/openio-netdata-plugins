@@ -23,11 +23,13 @@ import (
 	"strconv"
 	"testing"
 	"log"
+	"time"
+	"net"
 )
 
 var testEndpoints = []Endpoint{
-	{Path: "/mnt/test", URL: "localhost:7000"},
-	{Path: "/mnt/test2", URL: "localhost:7001"},
+	{Path: "/mnt/test", URL: "127.0.0.1:37000"},
+	{Path: "/mnt/test2", URL: "127.0.0.1:37001"},
 }
 
 type testServer struct {
@@ -55,9 +57,9 @@ func (s *testServer) Run() {
 }
 
 func TestOiofsCollector(t *testing.T) {
-	srv := newTestServer("./oiofs.spec.json", "localhost:7000")
+	srv := newTestServer("./oiofs.spec.json", "127.0.0.1:37000")
 	go srv.Run()
-	srv2 := newTestServer("./oiofs.spec.json", "localhost:7001")
+	srv2 := newTestServer("./oiofs.spec.json", "127.0.0.1:37001")
 	go srv2.Run()
 
 	tests := []map[string]int64{
@@ -88,6 +90,31 @@ func TestOiofsCollector(t *testing.T) {
 			"sds_StatFs_avg_us":     -1,
 		},
 	}
+
+	start := time.Now()
+
+	for {
+		now := time.Now()
+		elapsed := now.Sub(start)
+		if elapsed > 30 * time.Second {
+			t.Fatal("Could not connect to testserver endpoints")
+		}
+		errors := 0
+		for _, endpoint := range testEndpoints {
+			conn, err := net.Dial("tcp", endpoint.URL)
+			if err != nil {
+				errors++
+				break
+			} else {
+				conn.Close()
+			}
+		}
+		if errors == 0 {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+
 
 	for _, test := range []int{0, 1} {
 		func(full int) {
