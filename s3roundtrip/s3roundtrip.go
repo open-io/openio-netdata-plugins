@@ -117,13 +117,14 @@ func (c *collector) Collect() (map[string]string, error) {
 	time, err = c.s3c.get(c.bucket, c.object)
 	register(&data, "get", code(err), time)
 
-	time, err = c.s3c.put(c.bucket, c.objectTtfb, c.dataTtfb)
-	registerTtfb(&data, "put", time)
+	timeTTFBPut, err := c.s3c.put(c.bucket, c.objectTtfb, c.dataTtfb)
+	if err != nil {
+		registerTtfb(&data, "put", timeTTFBPut)
+		timeTTFBGet, _ := c.s3c.get(c.bucket, c.objectTtfb)
+		registerTtfb(&data, "get", timeTTFBGet)
 
-	time, err = c.s3c.get(c.bucket, c.objectTtfb)
-	registerTtfb(&data, "get", time)
-
-	c.s3c.del(c.bucket, c.objectTtfb)
+		_, _ = c.s3c.del(c.bucket, c.objectTtfb)
+	}
 
 	time, err = c.s3c.ls(c.bucket, 1000)
 	register(&data, "ls", code(err), time)
