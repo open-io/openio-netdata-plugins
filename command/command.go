@@ -20,16 +20,12 @@ import (
 	"fmt"
 	"log"
 	"oionetdata/netdata"
+	"oionetdata/util"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
-
-type Command struct {
-	Desc   string
-	Family string
-	Cmd    string
-}
 
 type Worker interface {
 	SinceLastRun() time.Duration
@@ -37,53 +33,81 @@ type Worker interface {
 }
 
 type collector struct {
-	cmds        map[string]Command
-	data        map[string]string
-	cache       map[string]bool
-	wait        time.Duration
-	cmdInterval time.Duration
-	worker      Worker
+	cmds   []util.Command
+	data   map[string]string
+	cache  map[string]bool
+	wait   time.Duration
+	worker Worker
 }
 
-func NewCollector(cmds map[string]Command, cmdInterval int64, w Worker) *collector {
+func setDefaults(cmds []util.Command, interval int64) {
+	for i, c := range cmds {
+		if c.Command == "" || c.Name == "" {
+			log.Fatalf("Cannot parse command %d: fields name,command are required", i)
+		}
+		if c.Interval == 0 {
+			c.Interval = interval
+		}
+		if c.Family == "" {
+			c.Family = "command"
+		}
+		c.LastRun = 0
+	}
+}
+
+func NewCollector(cmds []util.Command, interval int64, w Worker) *collector {
+	setDefaults(cmds, interval)
 	return &collector{
-		cmds:        cmds,
-		cmdInterval: time.Duration(cmdInterval) * time.Second,
-		data:        nil,
-		wait:        time.Duration(0 * time.Second),
-		cache:       make(map[string]bool),
-		worker:      w,
+		cmds:   cmds,
+		data:   make(map[string]string),
+		wait:   time.Duration(0 * time.Second),
+		cache:  make(map[string]bool),
+		worker: w,
 	}
 }
 
 func (c *collector) Collect() (map[string]string, error) {
+	now := time.Now()
 
-	c.wait -= c.worker.SinceLastRun()
-
-	if c.wait > 0 {
-		return c.data, nil
-	}
-
-	c.wait = c.cmdInterval
-
-	c.data = make(map[string]string)
-
-	for name, op := range c.cmds {
-		value, err := c.runCommand(op.Cmd)
-		if err != nil {
-			log.Printf("WARN: Command collector: command %s failed with error %s", op.Cmd, err)
+	for i, cmd := range c.cmds {
+		if now.Unix()-cmd.LastRun < cmd.Interval {
+			// Command is in cooldown
 			continue
 		}
 
-		chart := fmt.Sprintf("cmd_%s_%s", name, value)
+		c.cmds[i].LastRun = now.Unix()
+
+		value, err := c.runCommand(cmd.Command)
+
+		if err != nil {
+			log.Printf("WARN: Command collector: command %s failed with error %s", cmd.Command, err)
+			continue
+		}
+		if value == "" {
+			log.Printf("WARN: Command collector: command %s returned no output", cmd.Command)
+			continue
+		}
+
+		chart := fmt.Sprintf("cmd_%s", cmd.Name)
+		valueAsLabel := false
+
+		// Check if the value can be reported as is
+		if _, err := strconv.ParseFloat(value, 64); cmd.ValueIsLabel || err != nil {
+			chart = fmt.Sprintf("cmd_%s_%v", cmd.Name, value)
+			valueAsLabel = true
+		}
+
+		// Check if a new chart needs to be created
 		if _, ok := c.cache[chart]; !ok {
-			newChart := netdata.NewChart(chart, name, "", op.Desc, "", op.Family, "command")
-			newChart.AddDimension(chart, name, netdata.AbsoluteAlgorithm)
+			newChart := netdata.NewChart(chart, cmd.Name, "", cmd.Name, "", cmd.Family, "command")
+			newChart.AddDimension(chart, cmd.Name, netdata.AbsoluteAlgorithm)
 			c.worker.AddChart(newChart)
 			c.cache[chart] = true
 		}
-
-		c.data[chart] = fmt.Sprintf("%d", time.Now().Unix())
+		if cmd.ValueIsLabel || valueAsLabel {
+			value = fmt.Sprintf("%d", now.Unix())
+		}
+		c.data[chart] = value
 	}
 
 	return c.data, nil

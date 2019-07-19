@@ -18,6 +18,7 @@ package command
 
 import (
 	"oionetdata/netdata"
+	"oionetdata/util"
 	"testing"
 	"time"
 )
@@ -31,29 +32,62 @@ func (w *FakeWorker) SinceLastRun() time.Duration {
 func (w *FakeWorker) AddChart(chart *netdata.Chart, collector ...netdata.Collector) {
 }
 
-func TestCommandCollector(t *testing.T) {
-	cmds := make(map[string]Command)
-	cmds["test1"] = Command{Cmd: "echo '1.2.3'", Desc: "test", Family: "test"}
-	cmds["test2"] = Command{Cmd: "echo '1.2.4'", Desc: "test", Family: "test"}
-	cmds["test3"] = Command{Cmd: "echo '1.2.5 '", Desc: "test", Family: "test"}
+func keyExists(t *testing.T, data map[string]string, key string) {
+	if _, ok := data[key]; !ok {
+		t.Fatalf("Key %s not found in collected result data", key)
+	}
+}
 
-	collector := NewCollector(cmds, 10, &FakeWorker{})
-	res, err := collector.Collect()
+func valueCompare(t *testing.T, data map[string]string, key, value string, equal bool) {
+	if _, ok := data[key]; !ok {
+		t.Fatalf("Key %s not found in collected result data", key)
+	}
+	if equal && (data[key] != value) {
+		t.Fatalf("Value of key %s should be %s", key, value)
+	}
+	if !equal && (data[key] == value) {
+		t.Fatalf("Value of key %s should not be %s", key, value)
+	}
+}
+
+func copyMap(src map[string]string) map[string]string {
+	dst := make(map[string]string)
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func TestCommandCollector(t *testing.T) {
+	cmds := util.Commands{Config: []util.Command{
+		{Name: "test10", Command: "echo '1.2.3'", Family: "test"},
+		{Name: "test20", Command: "date +%N", Family: "test"},
+		{Name: "test21", Command: "date +%N", Family: "test", Interval: 10},
+		{Name: "test30", Command: "echo '1.2'", Family: "test"},
+		{Name: "test31", Command: "echo '1.2'", Family: "test", ValueIsLabel: true},
+	}}
+
+	collector := NewCollector(cmds.Config, 1, &FakeWorker{})
+	res2, err := collector.Collect()
+	res := copyMap(res2)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testData := map[string]string{
-		"cmd_test1_1.2.3": "1",
-		"cmd_test2_1.2.4": "1",
-		"cmd_test3_1.2.5": "1",
+	time.Sleep(2 * time.Second)
+	res2, err = collector.Collect()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// Test returned data
-	for k := range res {
-		if _, ok := testData[k]; !ok {
-			t.Fatalf("Key %s not found in collected result data", k)
-		}
-	}
+	keyExists(t, res, "cmd_test10_1.2.3")
+	keyExists(t, res, "cmd_test20")
+	keyExists(t, res2, "cmd_test20")
+	valueCompare(t, res2, "cmd_test20", res["cmd_test20"], false)
+	keyExists(t, res, "cmd_test21")
+	keyExists(t, res2, "cmd_test21")
+	valueCompare(t, res2, "cmd_test21", res["cmd_test21"], true)
+	keyExists(t, res, "cmd_test30")
+	keyExists(t, res, "cmd_test31_1.2")
 }

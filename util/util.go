@@ -19,6 +19,7 @@ package util
 import (
 	"bufio"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net"
@@ -39,6 +40,19 @@ var mReplacer = strings.NewReplacer(
 	":", "_",
 	"/", "_",
 )
+
+type Command struct {
+	Name         string `yaml:"name"`
+	Command      string `yaml:"command"`
+	Family       string `yaml:"family,omitempty"`
+	Interval     int64  `yaml:"interval,omitempty"`
+	LastRun      int64  `yaml:",omitempty"`
+	ValueIsLabel bool   `yaml:"value_is_label"`
+}
+
+type Commands struct {
+	Config []Command `yaml:"config,flow"`
+}
 
 // VolumeInfo retrieves metrics from statfs
 func VolumeInfo(volume string) (map[string]uint64, string, error) {
@@ -132,13 +146,37 @@ func AcctID(ns string, acct string, cont ...string) string {
 	return fmt.Sprintf("%s.%s", ns, mReplacer.Replace(acct))
 }
 
-// Commands retrieves commands to execute on each node
-func Commands(path string) (map[string]string, error) {
+// ParseCommands retrieves commands to execute on each node
+func ParseCommands(path string) (Commands, error) {
 	conf, err := ReadConf(path, "=")
+	cmds := Commands{Config: []Command{}}
+
 	if err != nil {
-		return nil, err
+		return cmds, err
 	}
-	return conf, err
+
+	for name, cmd := range conf {
+		// For old format commands, value is forced to be a label to maintain compatibility
+		cmds.Config = append(cmds.Config, Command{Name: name, Command: cmd, ValueIsLabel: true})
+	}
+	return cmds, nil
+}
+
+// ParseCommandsYaml retrieves commands to execute from a yaml config file
+func ParseCommandsYaml(path string) (Commands, error) {
+	cmds := Commands{}
+
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return cmds, err
+	}
+
+	err = yaml.Unmarshal(data, &cmds)
+	if err != nil {
+		return cmds, err
+	}
+
+	return cmds, err
 }
 
 // OiofsEndpoints retrieves oiofs endpoints to monitor
