@@ -19,10 +19,10 @@ package zookeeper
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"reflect"
 	"testing"
-	"log"
 )
 
 type testServer struct {

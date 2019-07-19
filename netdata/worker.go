@@ -98,10 +98,6 @@ func (w *worker) Run() {
 }
 
 func (w *worker) process() {
-	sleepTime := w.interval
-
-	w.sleep(sleepTime)
-
 	w.startRun = time.Now()
 
 	var sinceUpdate time.Duration
@@ -119,6 +115,8 @@ func (w *worker) process() {
 		w.lastUpdate = w.startRun
 		log.Printf("elapsed: %v", w.elapsed)
 	}
+
+	w.sleep(w.interval)
 }
 
 func (w *worker) sleep(sleepTime time.Duration) {

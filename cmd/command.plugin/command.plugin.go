@@ -20,6 +20,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"oionetdata/collector"
@@ -33,9 +34,7 @@ func main() {
 		log.Fatalf("argument required")
 	}
 	var conf string
-	var cmdInterval int64
 	fs := flag.NewFlagSet("", flag.ExitOnError)
-	fs.Int64Var(&cmdInterval, "interval", 3600, "Interval between commands in seconds")
 	fs.StringVar(&conf, "conf", "/etc/netdata/commands.conf", "Command configuration file")
 	err := fs.Parse(os.Args[2:])
 	if err != nil {
@@ -43,22 +42,22 @@ func main() {
 	}
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
-	cmds := make(map[string]command.Command)
+	cmds := util.Commands{}
 
-	out, err := util.Commands(conf)
+	if strings.HasSuffix(conf, ".yml") || strings.HasSuffix(conf, ".yaml") {
+		cmds, err = util.ParseCommandsYaml(conf)
+	} else {
+		cmds, err = util.ParseCommands(conf)
+	}
 	if err != nil {
 		log.Fatalln("ERROR: Command plugin: Could not load commands", err)
 	}
 
-	for name, cmd := range out {
-		cmds[name] = command.Command{Cmd: cmd, Desc: "OpenIO command", Family: "command"}
-	}
-
-	log.Printf("INFO: Command plugin: Loaded %d commands", len(cmds))
+	log.Printf("INFO: Command plugin: Loaded %d commands from %s", len(cmds.Config), conf)
 
 	writer := netdata.NewDefaultWriter()
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer)
-	collector := command.NewCollector(cmds, cmdInterval, worker)
+	collector := command.NewCollector(cmds.Config, int64(intervalSeconds), worker)
 	worker.SetCollector(collector)
 
 	worker.Run()

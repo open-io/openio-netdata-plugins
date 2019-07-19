@@ -32,6 +32,7 @@ $ cd
 $ git clone [this repo] go/src/oionetdata
 $ go get github.com/go-redis/redis
 $ go get github.com/aws/aws-sdk-go
+$ go get gopkg.in/yaml.v2
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
 $ go build ./cmd/openio.plugin/openio.plugin.go;
@@ -104,6 +105,29 @@ object=file-roundtrip
 timeout=3
 ```
 
+Since 0.6.0, netdata config files have the following format:
+```
+# /etc/netdata/commands.yml
+config:
+  - name: openio_version
+    command: "rpm -q --qf '%{VERSION}\n' openio-sds-server"
+    interval: 60
+    family: version
+    value_is_label: true
+  - name: swift_version
+    command: "rpm -q --qf '%{VERSION}\n' openio-sds-swift
+    interval: 60
+    family: version
+    value_is_label: true
+  - name: swift_version
+    command: "rpm -q --qf '%{VERSION}\n' openio-sds-swift
+    interval: 60
+    family: version
+    value_is_label: true
+[...]
+```
+
+For backward-compatibility, .conf files are still accepted:
 ```
 # /etc/netdata/commands.conf
 openio_version=rpm -q --qf "%{VERSION}\n" openio-sds-server

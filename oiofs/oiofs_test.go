@@ -19,12 +19,12 @@ package oiofs
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
-	"log"
 	"time"
-	"net"
 )
 
 var testEndpoints = []Endpoint{
@@ -96,7 +96,7 @@ func TestOiofsCollector(t *testing.T) {
 	for {
 		now := time.Now()
 		elapsed := now.Sub(start)
-		if elapsed > 30 * time.Second {
+		if elapsed > 30*time.Second {
 			t.Fatal("Could not connect to testserver endpoints")
 		}
 		errors := 0
@@ -114,7 +114,6 @@ func TestOiofsCollector(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-
 
 	for _, test := range []int{0, 1} {
 		func(full int) {

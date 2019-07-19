@@ -19,16 +19,16 @@ package openio
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"testing"
-    "time"
-    "oionetdata/netdata"
 	"log"
+	"net/http"
+	"oionetdata/netdata"
+	"testing"
+	"time"
 )
 
 var testAddr = "127.0.0.1:6006"
 
-type testServer struct {}
+type testServer struct{}
 
 func newTestServer() *testServer {
 	return &testServer{}
@@ -43,23 +43,23 @@ func (s *testServer) Run() {
 		fmt.Fprintf(w, string(b))
 	})
 
-    http.HandleFunc("/v3.0/OPENIO/conscience/info", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/v3.0/OPENIO/conscience/info", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w,
-"[\"account\",\"beanstalkd\",\"meta0\",\"meta1\",\"meta2\",\"oioproxy\",\"rawx\",\"rdir\",\"redis\",\"sqlx\"]")
+			"[\"account\",\"beanstalkd\",\"meta0\",\"meta1\",\"meta2\",\"oioproxy\",\"rawx\",\"rdir\",\"redis\",\"sqlx\"]")
 	})
 
-    http.HandleFunc("/v3.0/OPENIO/conscience/list", func(w http.ResponseWriter, r *http.Request) {
-        b, err := ioutil.ReadFile(fmt.Sprintf("./testdata/types_%s.json", r.URL.Query().Get("type")))
+	http.HandleFunc("/v3.0/OPENIO/conscience/list", func(w http.ResponseWriter, r *http.Request) {
+		b, err := ioutil.ReadFile(fmt.Sprintf("./testdata/types_%s.json", r.URL.Query().Get("type")))
 		if err != nil {
-            fmt.Println("Warning, type not implemented", r.URL.Query().Get("type"))
+			fmt.Println("Warning, type not implemented", r.URL.Query().Get("type"))
 			fmt.Fprintf(w, "[]")
-            return
+			return
 		}
 		fmt.Fprintf(w, string(b))
 	})
 
-    http.HandleFunc("/v3.0/OPENIO/forward/stats", func(w http.ResponseWriter, r *http.Request) {
-        // Not implemented
+	http.HandleFunc("/v3.0/OPENIO/forward/stats", func(w http.ResponseWriter, r *http.Request) {
+		// Not implemented
 		// b, err := ioutil.ReadFile("./testdata/stat_metax")
 		// if err != nil {
 		// 	fmt.Print(err)
@@ -67,8 +67,8 @@ func (s *testServer) Run() {
 		// fmt.Fprintf(w, string(b))
 	})
 
-    http.HandleFunc("/v3.0/OPENIO/forward/info", func(w http.ResponseWriter, r *http.Request) {
-        // Not implemented
+	http.HandleFunc("/v3.0/OPENIO/forward/info", func(w http.ResponseWriter, r *http.Request) {
+		// Not implemented
 		// b, err := ioutil.ReadFile(s.specFile)
 		// if err != nil {
 		// 	fmt.Print(err)
@@ -81,18 +81,17 @@ func (s *testServer) Run() {
 	}
 }
 
-
 func TestOpenIOCollector(t *testing.T) {
 	srv := newTestServer()
 	go srv.Run()
 
-    c := make(chan netdata.Metric, 1e5)
+	c := make(chan netdata.Metric, 1e5)
 	go Collect(testAddr, "OPENIO", c)
 
-    time.Sleep(time.Duration(2) * time.Second)
-    close(c)
-    // for m := range c {
-    //     // fmt.Println(m)
-    //     // buf[m.Chart] = append(buf[m.Chart], fmt.Sprintf("SET %s %s\n", m.Dim, m.Value)...)
-    // }
+	time.Sleep(time.Duration(2) * time.Second)
+	close(c)
+	// for m := range c {
+	//     // fmt.Println(m)
+	//     // buf[m.Chart] = append(buf[m.Chart], fmt.Sprintf("SET %s %s\n", m.Dim, m.Value)...)
+	// }
 }
