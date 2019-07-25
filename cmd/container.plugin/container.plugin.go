@@ -35,6 +35,7 @@ func main() {
 
 	var ns string
 	var conf string
+	var addr string
 	var limit int64
 	var threshold int64
 	var fast bool
@@ -42,6 +43,7 @@ func main() {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&ns, "ns", "OPENIO", "List of namespaces delimited by semicolons (:)")
 	fs.StringVar(&conf, "conf", "/etc/oio/sds/", "Path to SDS config directory")
+	fs.StringVar(&addr, "addr", "", "Force redis IP:PORT for each namespace")
 	fs.Int64Var(&limit, "limit", -1, "Amount of processed containers in a single request, -1 for unlimited")
 	fs.Int64Var(&threshold, "threshold", 3e5, "Minimal number of objects in container to report it")
 	fs.BoolVar(&fast, "fast", false, "Use fast account listing")
@@ -49,17 +51,25 @@ func main() {
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	namespaces := strings.Split(ns, ":")
-	collector.Run(intervalSeconds, makeCollect(conf, namespaces, limit, threshold, fast))
+	redisAddr := strings.Split(addr, ",")
+	collector.Run(intervalSeconds, makeCollect(conf, redisAddr, namespaces, limit, threshold, fast))
 }
 
-func makeCollect(basePath string, namespaces []string, l int64, t int64, f bool) (collect collector.Collect) {
+func makeCollect(basePath string, addr, namespaces []string, l int64, t int64, f bool) (collect collector.Collect) {
 
 	return func(c chan netdata.Metric) error {
 		errors := make(map[string]error)
-		for _, ns := range namespaces {
-			redisAddr, err := container.RedisAddr(basePath, ns)
-			if err != nil {
-				return err
+
+		for i, ns := range namespaces {
+			redisAddr := ""
+			var err error
+			if i < len(addr) && addr[i] != "" {
+				redisAddr = addr[i]
+			} else {
+				redisAddr, err = container.RedisAddr(basePath, ns)
+				if err != nil {
+					return err
+				}
 			}
 			client := redis.NewClient(&redis.Options{Addr: redisAddr})
 			errors[ns] = container.Collect(client, ns, l, t, f, c)
