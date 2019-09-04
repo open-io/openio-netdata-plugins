@@ -35,6 +35,7 @@ import (
 )
 
 const multMs = 10e6
+const mpuSize = int64(5 * 1024 * 1024)
 
 type s3c struct {
 	s3 s3iface.S3API
@@ -49,6 +50,11 @@ type collector struct {
 	dataTtfb   []byte
 	Endpoint   string
 	s3c        *s3c
+}
+
+type part struct {
+	ETag string
+	Num  int64
 }
 
 func NewCollector(conf map[string]string) *collector {
@@ -73,7 +79,7 @@ func NewCollector(conf map[string]string) *collector {
 	}
 
 	// Pre-generate random data for object
-	data, err := rnd(1024 * 1024 * 10)
+	data, err := rnd(1024 * 1024 * 5 + 2)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -135,6 +141,13 @@ func (c *collector) Collect() (map[string]string, error) {
 	register(&data, "rb", code(err), time)
 
 	return data, nil
+}
+
+func min(x, y int64) int64 {
+	if x < y {
+		return x
+	}
+	return y
 }
 
 func rnd(size int) ([]byte, error) {
@@ -219,14 +232,72 @@ func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
 	return time.Since(start), nil
 }
 
+func (s *s3c) cleanupMPU(bucket, obj string, uploadID *string) {
+	s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
+	    Bucket:   aws.String(bucket),
+	    Key:      aws.String(obj),
+	    UploadId: uploadID,
+	})
+}
+
 func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
-	input := &s3.PutObjectInput{
+	var part = int64(1)
+	var size = int64(len(data))
+
+	start := time.Now()
+
+	// Upload in MPU when size > MPU_SIZE
+	if size > mpuSize {
+		var parts = []*s3.CompletedPart{}
+		resCreate, err := s.s3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+			Bucket:     aws.String(bucket),
+			Key:        aws.String(obj),
+		})
+		if err != nil {
+			return time.Since(start), err
+		}
+
+		for size > 0 {
+			uploadedSize := min(mpuSize, size)
+			input := &s3.UploadPartInput{
+			    Body:       bytes.NewReader(data[:uploadedSize]),
+			    Bucket:     aws.String(bucket),
+			    Key:        aws.String(obj),
+			    PartNumber: aws.Int64(part),
+			    UploadId: resCreate.UploadId,
+			}
+			resUpload, err := s.s3.UploadPart(input)
+			if err != nil {
+				s.cleanupMPU(bucket, obj, resCreate.UploadId)
+				return time.Since(start), err
+			}
+
+			parts = append(parts, &s3.CompletedPart{
+				ETag: resUpload.ETag,
+				PartNumber: aws.Int64(part),
+			})
+			size = size - uploadedSize
+			part++
+		}
+
+		_, err = s.s3.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
+		    Bucket: aws.String(bucket),
+		    Key:    aws.String(obj),
+		    MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
+		    UploadId: resCreate.UploadId,
+		})
+		if err != nil {
+			s.cleanupMPU(bucket, obj, resCreate.UploadId)
+			return time.Since(start), err
+		}
+		return time.Since(start), nil
+	}
+
+	_, err := s.s3.PutObject(&s3.PutObjectInput{
 		Body:   bytes.NewReader(data),
 		Bucket: aws.String(bucket),
 		Key:    aws.String(obj),
-	}
-	start := time.Now()
-	_, err := s.s3.PutObject(input)
+	})
 	if err != nil {
 		return time.Since(start), err
 	}
