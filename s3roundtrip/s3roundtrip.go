@@ -69,6 +69,11 @@ func NewCollector(conf map[string]string) *collector {
 		timeout, _ = strconv.Atoi(t)
 	}
 
+	var fileSize = 5 * 1024 * 1024 + 2
+	if t, ok := conf["size"]; ok {
+		fileSize, _ = strconv.Atoi(t)
+	}
+
 	var config = aws.Config{
 		Region:           aws.String(conf["region"]),
 		Credentials:      credentials.NewStaticCredentials(conf["access"], conf["secret"], ""),
@@ -76,16 +81,6 @@ func NewCollector(conf map[string]string) *collector {
 		S3ForcePathStyle: aws.Bool(true),
 		MaxRetries:       aws.Int(1),
 		HTTPClient:       &http.Client{Timeout: time.Second * time.Duration(timeout)},
-	}
-
-	// Pre-generate random data for object
-	data, err := rnd(1024 * 1024 * 5 + 2)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	dataTtfb, err := rnd(1)
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	sess, err := session.NewSession(&config)
@@ -97,9 +92,9 @@ func NewCollector(conf map[string]string) *collector {
 		config:     config,
 		bucket:     conf["bucket"],
 		object:     conf["object"],
-		data:       data,
+		data:       make([]byte, fileSize),
 		objectTtfb: fmt.Sprintf(conf["object"], "_ttfb"),
-		dataTtfb:   dataTtfb,
+		dataTtfb:   make([]byte, 1),
 		Endpoint:   conf["endpoint"],
 		s3c:        &s3c{s3: s3.New(sess)},
 	}
