@@ -93,7 +93,7 @@ func NewCollector(conf map[string]string) *collector {
 		bucket:     conf["bucket"],
 		object:     conf["object"],
 		data:       make([]byte, fileSize),
-		objectTtfb: fmt.Sprintf(conf["object"], "_ttfb"),
+		objectTtfb: conf["object"] + "_ttfb",
 		dataTtfb:   make([]byte, 1),
 		Endpoint:   conf["endpoint"],
 		s3c:        &s3c{s3: s3.New(sess)},
