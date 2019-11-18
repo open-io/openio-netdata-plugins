@@ -20,12 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"strings"
-	"time"
 	"oionetdata/collector"
 	"oionetdata/netdata"
 	"oionetdata/redis"
+	"os"
+	"strings"
+	"time"
 )
 
 func main() {

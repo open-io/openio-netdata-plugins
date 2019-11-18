@@ -18,8 +18,8 @@ package redis
 
 import (
 	"bufio"
-    "io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"reflect"
@@ -27,26 +27,26 @@ import (
 )
 
 type testServer struct {
-    specFile string
+	specFile string
 }
 
 var expected = map[string]string{
-    "connected_slaves":"1",
-    "instantaneous_ops_per_sec":"39",
-    "is_master":"1",
-    "keys":"3",
-    "keyspace_hits":"2972",
-    "keyspace_misses":"176",
-    "mem_fragmentation_ratio":"2.19",
-    "rdb_changes_since_last_save":"473",
-    "repl_backlog_size":"1048576",
-    "total_commands_processed":"6973",
-    "total_connections_received":"2411",
-    "total_net_input_bytes":"328478",
-    "total_net_output_bytes":"1053126",
-    "used_memory":"2038864",
-    "used_memory_lua":"46080",
-    "used_memory_rss":"4464640",
+	"connected_slaves":            "1",
+	"instantaneous_ops_per_sec":   "39",
+	"is_master":                   "1",
+	"keys":                        "3",
+	"keyspace_hits":               "2972",
+	"keyspace_misses":             "176",
+	"mem_fragmentation_ratio":     "2.19",
+	"rdb_changes_since_last_save": "473",
+	"repl_backlog_size":           "1048576",
+	"total_commands_processed":    "6973",
+	"total_connections_received":  "2411",
+	"total_net_input_bytes":       "328478",
+	"total_net_output_bytes":      "1053126",
+	"used_memory":                 "2038864",
+	"used_memory_lua":             "46080",
+	"used_memory_rss":             "4464640",
 }
 
 func newTestServer(specFile string) *testServer {
@@ -69,16 +69,16 @@ func (s *testServer) handleConn(conn net.Conn) {
 	if err != nil {
 		panic(err)
 	}
-    if data == "QUIT" {
-        return
-    }
+	if data == "QUIT" {
+		return
+	}
 	if data != "INFO\r\n" {
 		log.Fatalf("Unknown command %s", data)
 	}
-    b, err := ioutil.ReadFile(s.specFile)
-    if err != nil {
-        fmt.Print(err)
-    }
+	b, err := ioutil.ReadFile(s.specFile)
+	if err != nil {
+		fmt.Print(err)
+	}
 	buf := bufio.NewWriter(conn)
 	buf.Write(b)
 	buf.Flush()
@@ -104,7 +104,7 @@ func TestRedisCollector(t *testing.T) {
 		t.Fatalf("unexpected result got\n%v\nexpected\n%v\n", data, expected)
 	}
 
-    l.Close()
+	l.Close()
 	_, err = collector.Collect()
 	if err == nil {
 		t.Fatalf("expected error")

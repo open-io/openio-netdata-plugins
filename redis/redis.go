@@ -18,16 +18,16 @@ package redis
 
 import (
 	"bufio"
-	"net"
-	"strings"
-	"regexp"
 	"fmt"
-	"os"
 	"log"
+	"net"
+	"os"
+	"regexp"
+	"strings"
 )
 
 type collector struct {
-	addr string
+	addr    string
 	cluster string
 }
 
@@ -37,28 +37,28 @@ func NewCollector(addr string) *collector {
 		log.Fatalln("Invalid address", addr, "must be IP:PORT:CLUSTER_ID")
 	}
 	return &collector{
-		addr: res[0] + ":" + res[1],
+		addr:    res[0] + ":" + res[1],
 		cluster: res[2],
 	}
 }
 
-var whitelist = map[string]bool {
-	"used_memory": true,
-	"used_memory_rss": true,
-	"used_memory_lua": true,
-	"mem_fragmentation_ratio": true,
+var whitelist = map[string]bool{
+	"used_memory":                 true,
+	"used_memory_rss":             true,
+	"used_memory_lua":             true,
+	"mem_fragmentation_ratio":     true,
 	"rdb_changes_since_last_save": true,
-	"total_connections_received": true,
-	"total_commands_processed": true,
-	"instantaneous_ops_per_sec": true,
-	"total_net_input_bytes": true,
-	"total_net_output_bytes": true,
-	"keyspace_hits": true,
-	"keyspace_misses": true,
-	"role": true,
-	"connected_slaves": true,
-	"repl_backlog_size": true,
-	"db0": true, // Note: VDO: maybe add support for other db?
+	"total_connections_received":  true,
+	"total_commands_processed":    true,
+	"instantaneous_ops_per_sec":   true,
+	"total_net_input_bytes":       true,
+	"total_net_output_bytes":      true,
+	"keyspace_hits":               true,
+	"keyspace_misses":             true,
+	"role":                        true,
+	"connected_slaves":            true,
+	"repl_backlog_size":           true,
+	"db0":                         true, // Note: VDO: maybe add support for other db?
 }
 
 var keysRegexp = regexp.MustCompile(`keys=(\d+)`)
@@ -86,23 +86,23 @@ func (c *collector) Collect() (map[string]string, error) {
 		}
 		if _, ok := whitelist[kv[0]]; ok {
 			switch true {
-				// Match keys in db entry
-				case strings.HasPrefix(kv[0], "db"):
-					keys := keysRegexp.FindStringSubmatch(kv[1])
-					if len(keys) > 1 {
-						data["keys"] = keys[1]
-					} else {
-						fmt.Fprintln(os.Stderr, "WARN: received unparseable db notation", kv[1])
-					}
-				// Format role:master or role:slave
-				case kv[0] == "role":
-					if kv[1] == "master" {
-						data["is_master"] = "1"
-					} else {
-						data["is_master"] = "0"
-					}
-				default:
-					data[kv[0]] = kv[1]
+			// Match keys in db entry
+			case strings.HasPrefix(kv[0], "db"):
+				keys := keysRegexp.FindStringSubmatch(kv[1])
+				if len(keys) > 1 {
+					data["keys"] = keys[1]
+				} else {
+					fmt.Fprintln(os.Stderr, "WARN: received unparseable db notation", kv[1])
+				}
+			// Format role:master or role:slave
+			case kv[0] == "role":
+				if kv[1] == "master" {
+					data["is_master"] = "1"
+				} else {
+					data["is_master"] = "0"
+				}
+			default:
+				data[kv[0]] = kv[1]
 			}
 		}
 	}
