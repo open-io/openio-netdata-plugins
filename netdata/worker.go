@@ -141,7 +141,7 @@ func (w *worker) update(interval time.Duration) (bool, error) {
 		} else {
 			log.Printf("Failed to update: collector not found")
 			log.Println(collector)
-			log.Println(w.chartsIndex)
+			log.Println("Charts index", w.chartsIndex)
 		}
 
 		if !updated {
