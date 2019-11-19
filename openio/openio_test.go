@@ -40,7 +40,10 @@ func (s *testServer) Run() {
 		if err != nil {
 			fmt.Print(err)
 		}
-		fmt.Fprintf(w, string(b))
+		_, err = w.Write(b)
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 
 	http.HandleFunc("/v3.0/OPENIO/conscience/info", func(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +55,16 @@ func (s *testServer) Run() {
 		b, err := ioutil.ReadFile(fmt.Sprintf("./testdata/types_%s.json", r.URL.Query().Get("type")))
 		if err != nil {
 			fmt.Println("Warning, type not implemented", r.URL.Query().Get("type"))
-			fmt.Fprintf(w, "[]")
+			_, err = w.Write([]byte("[]"))
+			if err != nil {
+				fmt.Print(err)
+			}
 			return
 		}
-		fmt.Fprintf(w, string(b))
+		_, err = w.Write(b)
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 
 	http.HandleFunc("/v3.0/OPENIO/forward/stats", func(w http.ResponseWriter, r *http.Request) {
