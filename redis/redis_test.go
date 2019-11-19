@@ -97,7 +97,7 @@ func TestRedisCollector(t *testing.T) {
 	redis := newTestServer("./redis.spec.txt")
 	go redis.Run(l)
 
-	collector := NewCollector(l.Addr().String() + ":0")
+	collector := NewCollector(l.Addr().String())
 	data, err := collector.Collect()
 	if err != nil {
 		t.Fatalf("unexpected Collect error: %v", err)

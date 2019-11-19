@@ -19,7 +19,6 @@ package redis
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"regexp"
@@ -32,13 +31,8 @@ type collector struct {
 }
 
 func NewCollector(addr string) *collector {
-	res := strings.Split(addr, ":")
-	if len(res) != 3 {
-		log.Fatalln("Invalid address", addr, "must be IP:PORT:CLUSTER_ID")
-	}
 	return &collector{
-		addr:    res[0] + ":" + res[1],
-		cluster: res[2],
+		addr:    addr,
 	}
 }
 
@@ -85,9 +79,8 @@ func (c *collector) Collect() (map[string]string, error) {
 			continue
 		}
 		if _, ok := whitelist[kv[0]]; ok {
-			switch true {
 			// Match keys in db entry
-			case strings.HasPrefix(kv[0], "db"):
+			if strings.HasPrefix(kv[0], "db") {
 				keys := keysRegexp.FindStringSubmatch(kv[1])
 				if len(keys) > 1 {
 					data["keys"] = keys[1]
@@ -95,13 +88,13 @@ func (c *collector) Collect() (map[string]string, error) {
 					fmt.Fprintln(os.Stderr, "WARN: received unparseable db notation", kv[1])
 				}
 			// Format role:master or role:slave
-			case kv[0] == "role":
+			} else if kv[0] == "role" {
 				if kv[1] == "master" {
 					data["is_master"] = "1"
 				} else {
 					data["is_master"] = "0"
 				}
-			default:
+			} else {
 				data[kv[0]] = kv[1]
 			}
 		}

@@ -45,33 +45,39 @@ func main() {
 		log.Fatalln("ERROR: Redis plugin: missing targets")
 	}
 
+
+
 	writer := netdata.NewDefaultWriter()
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer)
 
 	for _, addr := range strings.Split(targets, ",") {
-		collector := redis.NewCollector(addr)
+		res := strings.Split(addr, ":")
+		if len(res) != 3 {
+			// CLUSTER_ID is used exclusively as a label here; it allows to group metrics by cluster to provide
+			// alerts when the cluster size/state is incorrect
+			log.Fatalln("Invalid address", addr, "must be IP:PORT:CLUSTER_ID")
+		}
+		collector := redis.NewCollector(res[0] + ":" + res[1])
 		worker.AddCollector(collector)
-		instance := "redis." + addr // TODO colon?
+		instance := "redis." + addr
 
 		keysChart := netdata.NewChart(instance, "keys", "", "Keys", "count", instance, "redis.keys.")
 		keysChart.AddDimension(
 			fmt.Sprintf("keys"),
 			"keys",
-			netdata.AbsoluteAlgorithm, //netdata.IncrementalAlgorithm,
+			netdata.AbsoluteAlgorithm,
 		)
 		worker.AddChart(keysChart, collector)
 
 		memChart := netdata.NewChart(instance, "memory", "", "Memory", "bytes", instance, "redis.memory")
-		for k, v := range map[string]string{
-			"used_memory": "total", "used_memory_rss": "rss", "used_memory_lua": "lua"} {
-			memChart.AddDimension(k, v, netdata.AbsoluteAlgorithm) //netdata.IncrementalAlgorithm,)
-		}
+		memChart.AddDimension("used_memory", "total", netdata.AbsoluteAlgorithm)
+		memChart.AddDimension("used_memory_rss", "rss", netdata.AbsoluteAlgorithm)
+		memChart.AddDimension("used_memory_lua", "lua", netdata.AbsoluteAlgorithm)
 		worker.AddChart(memChart, collector)
 
 		bandwidthChart := netdata.NewChart(instance, "net", "", "Network traffic", "bytes", instance, "redis.net")
-		for k, v := range map[string]string{"total_net_input_bytes": "received", "total_net_output_bytes": "sent"} {
-			bandwidthChart.AddDimension(k, v, netdata.IncrementalAlgorithm) //netdata.IncrementalAlgorithm,)
-		}
+		bandwidthChart.AddDimension("total_net_input_bytes", "received", netdata.IncrementalAlgorithm)
+		bandwidthChart.AddDimension("total_net_output_bytes", "sent", netdata.IncrementalAlgorithm)
 		worker.AddChart(bandwidthChart, collector)
 
 		opsChart := netdata.NewChart(instance, "instant", "", "Instantaneous operations", "ops", instance, "redis.ops")
