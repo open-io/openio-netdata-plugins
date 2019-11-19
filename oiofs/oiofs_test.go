@@ -48,7 +48,10 @@ func (s *testServer) Run() {
 		if err != nil {
 			fmt.Print(err)
 		}
-		fmt.Fprintf(w, string(b))
+		_, err = w.Write(b)
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 	err := http.ListenAndServe(s.addr, server)
 	if err != nil {

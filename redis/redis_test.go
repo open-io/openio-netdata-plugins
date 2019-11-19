@@ -80,7 +80,10 @@ func (s *testServer) handleConn(conn net.Conn) {
 		fmt.Print(err)
 	}
 	buf := bufio.NewWriter(conn)
-	buf.Write(b)
+	_, err = buf.Write(b)
+	if err != nil {
+		fmt.Print(err)
+	}
 	buf.Flush()
 	conn.Close()
 }
