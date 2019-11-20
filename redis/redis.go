@@ -27,7 +27,6 @@ import (
 
 type collector struct {
 	addr    string
-	cluster string
 }
 
 func NewCollector(addr string) *collector {
