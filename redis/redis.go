@@ -92,6 +92,7 @@ func (c *collector) Collect() (map[string]string, error) {
 					data["is_master"] = "1"
 				} else {
 					data["is_master"] = "0"
+					data["connected_slaves"] = "0"
 				}
 			} else {
 				data[kv[0]] = kv[1]
