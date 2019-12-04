@@ -80,10 +80,12 @@ func HTTPGet(url string) (string, error) {
 	return string(body), nil
 }
 
-func getIPList() map[string]bool {
+func getIPList() (map[string]bool, error) {
 	ipList := make(map[string]bool)
 	ifaces, err := net.InterfaceAddrs()
-	RaiseIf(err)
+	if err != nil {
+		return nil, err
+	}
 	for ip := range ifaces {
 		// TODO: consider adding support for IPv6 here
 		ips := strings.Split(ifaces[ip].String(), "/")[0]
@@ -91,7 +93,7 @@ func getIPList() map[string]bool {
 			ipList[ips] = true
 		}
 	}
-	return ipList
+	return ipList, nil
 }
 
 // IsSameHost -- checks if a service if on the current host
@@ -100,20 +102,16 @@ func IsSameHost(service string) bool {
 		return true
 	}
 	if ipList == nil {
-		ipList = getIPList()
+		var err error
+		ipList, err = getIPList()
+		if err != nil {
+			log.Println("WARN could not determine if same host, assuming not", err)
+			return false
+		}
 	}
 	serviceIP := strings.Split(service, ":")[0]
 	_, ok := ipList[serviceIP]
 	return ok
-}
-
-/*
-RaiseIf - Exit with error
-*/
-func RaiseIf(err error) {
-	if err != nil {
-		log.Fatalln(err)
-	}
 }
 
 // SID -- Get a service ID for netdata
