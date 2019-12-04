@@ -140,7 +140,9 @@ func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan n
 				}
 				contObj := map[string][]int{}
 				err = json.Unmarshal([]byte(res.(string)), &contObj)
-				util.RaiseIf(err)
+				if err != nil {
+					return err
+				}
 				for cont, values := range contObj {
 					netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[0]), c)
 					netdata.Update("container_bytes", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[1]), c)

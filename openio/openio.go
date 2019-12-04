@@ -117,9 +117,17 @@ func diffCounter(metric string, sid string, value string) string {
 Collect - collect openio metrics
 */
 func Collect(proxyURL string, ns string, c chan netdata.Metric) {
-	var sType = serviceTypes(proxyURL, ns)
+	sType, err := serviceTypes(proxyURL, ns)
+	if err != nil {
+		log.Println("WARN: couldn't retrieve service types", err)
+		return
+	}
 	for t := range sType {
-		var sInfo = collectScore(proxyURL, ns, sType[t], c)
+		sInfo, err := collectScore(proxyURL, ns, sType[t], c)
+		if err != nil {
+			log.Println("WARN: could not retrieve services of type", sType[t], err)
+			continue
+		}
 		if sType[t] == "rawx" {
 			for sc := range sInfo {
 				if sInfo[sc].Local {
@@ -139,25 +147,27 @@ func Collect(proxyURL string, ns string, c chan netdata.Metric) {
 	}
 }
 
-func serviceTypes(proxyURL string, ns string) serviceType {
+func serviceTypes(proxyURL string, ns string) (serviceType, error) {
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/info?what=types", proxyURL, ns)
 	res := serviceType{}
 
 	typesResponse, err := util.HTTPGet(url)
-	if err == nil {
-		util.RaiseIf(json.Unmarshal([]byte(typesResponse), &res))
+	if err != nil {
+		return nil, err
 	}
-	return res
+	err = json.Unmarshal([]byte(typesResponse), &res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-/*
-CollectRawx - update metrics for Rawx services
-*/
 func collectRawx(ns string, service string, c chan netdata.Metric) {
 	url := fmt.Sprintf("http://%s/stat", service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
-		log.Printf("DEBUG: rawx metric collection failed", err)
+		log.Println("WARN: rawx metric collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
@@ -180,7 +190,7 @@ func collectMetax(ns string, service string, proxyURL string, c chan netdata.Met
 	url := fmt.Sprintf("http://%s/v3.0/forward/stats?id=%s", proxyURL, service)
 	res, err := util.HTTPGet(url)
 	if err != nil {
-		log.Printf("DEBUG: metax stats collection failed", err)
+		log.Println("WARN: metaX stats collection failed", err)
 		return
 	}
 	var lines = strings.Split(res, "\n")
@@ -209,12 +219,12 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 	res, err := util.HTTPGet(url)
 
 	if err != nil {
-		log.Printf("DEBUG: meta2 info collection failed", err)
+		log.Println("WARN: meta2 info collection failed", err)
 		return
 	}
 
 	if err = json.Unmarshal([]byte(res), &info); err != nil {
-		log.Printf("DEBUG: meta2 info collection failed", err)
+		log.Println("WARN: meta2 info collection failed", err)
 		return
 	}
 
@@ -229,7 +239,7 @@ func collectMeta2Info(ns, service, proxyURL string, c chan netdata.Metric) {
 func volumeInfo(service string, ns string, volume string, c chan netdata.Metric) {
 	info, fsid, err := util.VolumeInfo(volume)
 	if err != nil {
-		log.Printf("DEBUG: volume info collection failed", err)
+		log.Println("WARN: volume info collection failed", err)
 		return
 	}
 	for dim, val := range info {
@@ -237,23 +247,24 @@ func volumeInfo(service string, ns string, volume string, c chan netdata.Metric)
 	}
 }
 
-/*
-CollectScore - collect score values on all scored services
-*/
-func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metric) serviceInfo {
+func collectScore(proxyURL string, ns string, sType string, c chan netdata.Metric) (serviceInfo, error) {
 	sInfo := serviceInfo{}
 	url := fmt.Sprintf("http://%s/v3.0/%s/conscience/list?type=%s", proxyURL, ns, sType)
 	res, err := util.HTTPGet(url)
-	if err == nil {
-		util.RaiseIf(json.Unmarshal([]byte(res), &sInfo))
-		for i := range sInfo {
-			if util.IsSameHost(sInfo[i].Addr) {
-				sInfo[i].Local = true
-				netdata.Update("score", util.SID(sType+"_"+sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
-			} else {
-				sInfo[i].Local = false
-			}
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal([]byte(res), &sInfo)
+	if err != nil {
+		return nil, err
+	}
+	for i := range sInfo {
+		if util.IsSameHost(sInfo[i].Addr) {
+			sInfo[i].Local = true
+			netdata.Update("score", util.SID(sType+"_"+sInfo[i].Addr, ns), fmt.Sprint(sInfo[i].Score), c)
+		} else {
+			sInfo[i].Local = false
 		}
 	}
-	return sInfo
+	return sInfo, nil
 }
