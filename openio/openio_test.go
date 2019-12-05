@@ -41,7 +41,10 @@ func (s *testServer) Run() {
 		if err != nil {
 			fmt.Print(err)
 		}
-		fmt.Fprintf(w, string(b))
+		_, err = w.Write(b)
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 
 
@@ -62,7 +65,10 @@ func (s *testServer) Run() {
 			}
             return
 		}
-		fmt.Fprintf(w, string(b))
+		_, err = w.Write(b)
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 
     http.HandleFunc("/v3.0/OPENIO/forward/stats", func(w http.ResponseWriter, r *http.Request) {
