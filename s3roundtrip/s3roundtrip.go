@@ -19,10 +19,8 @@ package s3roundtrip
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -50,11 +48,6 @@ type collector struct {
 	dataTtfb   []byte
 	Endpoint   string
 	s3c        *s3c
-}
-
-type part struct {
-	ETag string
-	Num  int64
 }
 
 func NewCollector(conf map[string]string) *collector {
@@ -146,22 +139,6 @@ func min(x, y int64) int64 {
 	return y
 }
 
-func rnd(size int) ([]byte, error) {
-	r, err := os.Open("/dev/urandom")
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	var res = make([]byte, size)
-
-	if _, err := io.ReadFull(r, res[:]); err != nil {
-		return nil, err
-	}
-
-	return res, err
-}
-
 func code(err error) string {
 	if err != nil {
 		if req, ok := err.(awserr.RequestFailure); ok {
@@ -229,11 +206,14 @@ func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
 }
 
 func (s *s3c) cleanupMPU(bucket, obj string, uploadID *string) {
-	s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
+	_, err := s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
 	    Bucket:   aws.String(bucket),
 	    Key:      aws.String(obj),
 	    UploadId: uploadID,
 	})
+	if err != nil {
+		log.Println("WARN: failed to abort MPU", uploadID, err)
+	}
 }
 
 func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
