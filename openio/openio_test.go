@@ -27,6 +27,7 @@ import (
 )
 
 var testAddr = "127.0.0.1:6006"
+var svc = "[\"account\",\"beanstalkd\",\"meta0\",\"meta1\",\"meta2\",\"oioproxy\",\"rawx\",\"rdir\",\"redis\",\"sqlx\"]"
 
 type testServer struct {}
 
@@ -43,16 +44,22 @@ func (s *testServer) Run() {
 		fmt.Fprintf(w, string(b))
 	})
 
+
     http.HandleFunc("/v3.0/OPENIO/conscience/info", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w,
-"[\"account\",\"beanstalkd\",\"meta0\",\"meta1\",\"meta2\",\"oioproxy\",\"rawx\",\"rdir\",\"redis\",\"sqlx\"]")
+		_, err := w.Write([]byte(svc))
+		if err != nil {
+			fmt.Print(err)
+		}
 	})
 
     http.HandleFunc("/v3.0/OPENIO/conscience/list", func(w http.ResponseWriter, r *http.Request) {
         b, err := ioutil.ReadFile(fmt.Sprintf("./testdata/types_%s.json", r.URL.Query().Get("type")))
 		if err != nil {
             fmt.Println("Warning, type not implemented", r.URL.Query().Get("type"))
-			fmt.Fprintf(w, "[]")
+			_, err := w.Write([]byte("[]"))
+			if err != nil {
+				fmt.Print(err)
+			}
             return
 		}
 		fmt.Fprintf(w, string(b))
