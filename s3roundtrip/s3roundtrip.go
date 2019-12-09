@@ -19,10 +19,8 @@ package s3roundtrip
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -35,6 +33,7 @@ import (
 )
 
 const multMs = 10e6
+const mpuSize = int64(5 * 1024 * 1024)
 
 type s3c struct {
 	s3 s3iface.S3API
@@ -63,6 +62,11 @@ func NewCollector(conf map[string]string) *collector {
 		timeout, _ = strconv.Atoi(t)
 	}
 
+	var fileSize = 5 * 1024 * 1024 + 2
+	if t, ok := conf["size"]; ok {
+		fileSize, _ = strconv.Atoi(t)
+	}
+
 	var config = aws.Config{
 		Region:           aws.String(conf["region"]),
 		Credentials:      credentials.NewStaticCredentials(conf["access"], conf["secret"], ""),
@@ -70,16 +74,6 @@ func NewCollector(conf map[string]string) *collector {
 		S3ForcePathStyle: aws.Bool(true),
 		MaxRetries:       aws.Int(1),
 		HTTPClient:       &http.Client{Timeout: time.Second * time.Duration(timeout)},
-	}
-
-	// Pre-generate random data for object
-	data, err := rnd(1024 * 1024 * 10)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	dataTtfb, err := rnd(1)
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	sess, err := session.NewSession(&config)
@@ -91,9 +85,9 @@ func NewCollector(conf map[string]string) *collector {
 		config:     config,
 		bucket:     conf["bucket"],
 		object:     conf["object"],
-		data:       data,
-		objectTtfb: fmt.Sprintf(conf["object"], "_ttfb"),
-		dataTtfb:   dataTtfb,
+		data:       make([]byte, fileSize),
+		objectTtfb: conf["object"] + "_ttfb",
+		dataTtfb:   make([]byte, 1),
 		Endpoint:   conf["endpoint"],
 		s3c:        &s3c{s3: s3.New(sess)},
 	}
@@ -138,20 +132,11 @@ func (c *collector) Collect() (map[string]string, error) {
 	return data, nil
 }
 
-func rnd(size int) ([]byte, error) {
-	r, err := os.Open("/dev/urandom")
-	if err != nil {
-		return nil, err
+func min(x, y int64) int64 {
+	if x < y {
+		return x
 	}
-	defer r.Close()
-
-	var res = make([]byte, size)
-
-	if _, err := io.ReadFull(r, res[:]); err != nil {
-		return nil, err
-	}
-
-	return res, err
+	return y
 }
 
 func code(err error) string {
@@ -220,14 +205,75 @@ func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
 	return time.Since(start), nil
 }
 
+func (s *s3c) cleanupMPU(bucket, obj string, uploadID *string) {
+	_, err := s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
+	    Bucket:   aws.String(bucket),
+	    Key:      aws.String(obj),
+	    UploadId: uploadID,
+	})
+	if err != nil {
+		log.Println("WARN: failed to abort MPU", uploadID, err)
+	}
+}
+
 func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
-	input := &s3.PutObjectInput{
+	var part = int64(1)
+	var size = int64(len(data))
+
+	start := time.Now()
+
+	// Upload in MPU when size > MPU_SIZE
+	if size > mpuSize {
+		var parts = []*s3.CompletedPart{}
+		resCreate, err := s.s3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+			Bucket:     aws.String(bucket),
+			Key:        aws.String(obj),
+		})
+		if err != nil {
+			return time.Since(start), err
+		}
+
+		for size > 0 {
+			uploadedSize := min(mpuSize, size)
+			input := &s3.UploadPartInput{
+			    Body:       bytes.NewReader(data[:uploadedSize]),
+			    Bucket:     aws.String(bucket),
+			    Key:        aws.String(obj),
+			    PartNumber: aws.Int64(part),
+			    UploadId: resCreate.UploadId,
+			}
+			resUpload, err := s.s3.UploadPart(input)
+			if err != nil {
+				s.cleanupMPU(bucket, obj, resCreate.UploadId)
+				return time.Since(start), err
+			}
+
+			parts = append(parts, &s3.CompletedPart{
+				ETag: resUpload.ETag,
+				PartNumber: aws.Int64(part),
+			})
+			size = size - uploadedSize
+			part++
+		}
+
+		_, err = s.s3.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
+		    Bucket: aws.String(bucket),
+		    Key:    aws.String(obj),
+		    MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
+		    UploadId: resCreate.UploadId,
+		})
+		if err != nil {
+			s.cleanupMPU(bucket, obj, resCreate.UploadId)
+			return time.Since(start), err
+		}
+		return time.Since(start), nil
+	}
+
+	_, err := s.s3.PutObject(&s3.PutObjectInput{
 		Body:   bytes.NewReader(data),
 		Bucket: aws.String(bucket),
 		Key:    aws.String(obj),
-	}
-	start := time.Now()
-	_, err := s.s3.PutObject(input)
+	})
 	if err != nil {
 		return time.Since(start), err
 	}
