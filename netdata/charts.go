@@ -98,19 +98,43 @@ func (c *Chart) create(out Writer) {
 }
 
 func (c *Chart) Update(data map[string]string, interval time.Duration, out Writer) bool {
-	var updatedDimensions []string
-	for _, dimID := range c.dimensionsIndex {
-		if c.refresh {
-			c.create(out)
+	// var updatedDimensions []string
+	// for _, dimID := range c.dimensionsIndex {
+	// 	if c.refresh {
+	// 		c.create(out)
+	// 	}
+	// 	if value, ok := data[dimID]; ok {
+	// 		dim := c.dimensions[dimID]
+	// 		updatedDimensions = append(updatedDimensions, dim.set(value))
+	// 	}
+	// }
+	//
+	// if len(updatedDimensions) != 0 {
+	// 	out.Printf("BEGIN %s.%s\n%s\nEND\n", c.Type, c.ID, strings.Join(updatedDimensions, "\n"))
+	// 	return true
+	// }
+
+	var updated []string
+	for dim, value := range data {
+		if d, ok := c.dimensions[dim]; ok {
+			updated = append(updated, d.set(value))
 		}
-		if value, ok := data[dimID]; ok {
-			dim := c.dimensions[dimID]
-			updatedDimensions = append(updatedDimensions, dim.set(value))
+		if strings.HasPrefix(dim, c.ID + "_") {
+			dim = strings.TrimPrefix(dim, c.ID + "_")
+			if _, ok := c.dimensions[dim]; !ok {
+				c.AddDimension(dim, dim, AbsoluteAlgorithm)
+				c.refresh = true
+			}
+			dm := c.dimensions[dim]
+			updated = append(updated, dm.set(value))
 		}
 	}
+	if c.refresh || true {
+		c.create(out)
+	}
 
-	if len(updatedDimensions) != 0 {
-		out.Printf("BEGIN %s.%s\n%s\nEND\n", c.Type, c.ID, strings.Join(updatedDimensions, "\n"))
+	if len(updated) > 0 {
+		out.Printf("BEGIN %s.%s\n%s\nEND\n", c.Type, c.ID, strings.Join(updated, "\n"))
 		return true
 	}
 

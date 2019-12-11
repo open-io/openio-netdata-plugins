@@ -81,6 +81,13 @@ func (w *worker) AddChart(chart *Chart, params ...Collector) {
 	w.charts[chartID] = chart
 }
 
+func (w *worker) GetChart(chartID string) *Chart {
+	if chart, ok := w.charts[chartID]; ok {
+		return chart
+	}
+	return nil
+}
+
 func (w *worker) indexChart(chartID string, collector Collector) {
 	w.chartsIndex[collector] = append(w.chartsIndex[collector], chartID)
 }
@@ -150,3 +157,23 @@ func (w *worker) update(interval time.Duration) (bool, error) {
 	}
 	return updated, nil
 }
+
+// var updated []string
+// for dim, value := range data {
+// 	fmt.Println(dim, c.ID)
+// 	if strings.HasPrefix(dim, c.ID + "_") {
+// 		actualDim := strings.TrimPrefix(dim, c.ID + "_")
+// 		c.AddDimension(actualDim, actualDim, AbsoluteAlgorithm)
+// 	}
+// 	if c.refresh {
+// 		c.create(out)
+// 	}
+// 	if d, ok := c.dimensions[dim]; ok {
+// 		updated = append(updated, d.set(value))
+// 	}
+// }
+//
+// if len(updated) > 0 {
+// 	out.Printf("BEGIN %s.%s\n%s\nEND\n", c.Type, c.ID, strings.Join(updated, "\n"))
+// 	return true
+// }
