@@ -94,9 +94,9 @@ func NewCollector(conf map[string]string) *collector {
 }
 
 func (c *collector) Collect() (map[string]string, error) {
-	data := make(map[string]string)
+	data := map[string]string{}
 
-	for _, req := range []string{"get", "put", "del", "rb", "mb"} {
+	for _, req := range []string{"get", "put", "del", "ls", "rb", "mb"} {
 		for _, dim := range []string{"2xx", "4xx", "5xx", "other"} {
 			data[fmt.Sprintf("response_code_%s_%s", req, dim)] = "0"
 		}
@@ -112,11 +112,10 @@ func (c *collector) Collect() (map[string]string, error) {
 	register(&data, "get", code(err), time)
 
 	timeTTFBPut, err := c.s3c.put(c.bucket, c.objectTtfb, c.dataTtfb)
-	if err != nil {
+	if err == nil {
 		registerTtfb(&data, "put", timeTTFBPut)
 		timeTTFBGet, _ := c.s3c.get(c.bucket, c.objectTtfb)
 		registerTtfb(&data, "get", timeTTFBGet)
-
 		_, _ = c.s3c.del(c.bucket, c.objectTtfb)
 	}
 
@@ -274,10 +273,7 @@ func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
 		Bucket: aws.String(bucket),
 		Key:    aws.String(obj),
 	})
-	if err != nil {
-		return time.Since(start), err
-	}
-	return time.Since(start), nil
+	return time.Since(start), err
 }
 
 func (s *s3c) get(bucket, obj string) (time.Duration, error) {
@@ -287,9 +283,6 @@ func (s *s3c) get(bucket, obj string) (time.Duration, error) {
 	}
 	start := time.Now()
 	_, err := s.s3.GetObject(input)
-	if err != nil {
-		return time.Since(start), err
-	}
 	return time.Since(start), err
 }
 
@@ -300,8 +293,5 @@ func (s *s3c) del(bucket, obj string) (time.Duration, error) {
 	}
 	start := time.Now()
 	_, err := s.s3.DeleteObject(input)
-	if err != nil {
-		return time.Since(start), err
-	}
 	return time.Since(start), err
 }
