@@ -169,14 +169,10 @@ func (s *s3c) mb(bucket string) (time.Duration, error) {
 	}
 	start := time.Now()
 	_, err := s.s3.CreateBucket(&input)
-	if aerr, ok := err.(awserr.Error); ok {
-		if aerr.Code() != s3.ErrCodeBucketAlreadyExists {
-			return time.Since(start), nil
-		}
-	} else {
-		return time.Since(start), err
+	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou {
+		return time.Since(start), nil
 	}
-	return time.Since(start), nil
+	return time.Since(start), err
 }
 
 func (s *s3c) rb(bucket string) (time.Duration, error) {
