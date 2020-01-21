@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"oionetdata/collector"
+	nlog "oionetdata/log"
 	"oionetdata/netdata"
-	"oionetdata/logger"
 )
 
 func main() {
@@ -43,42 +43,23 @@ func main() {
 	writer := netdata.NewDefaultWriter()
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer)
 
-	collector := logger.NewCollector(conf)
+	collector := nlog.NewCollector(conf)
 	worker.AddCollector(collector)
 
-    family := "log"
-    // var httpStatuses = []int{"100","101","102","103",
-    //     "200","202","203","204","205","206","207","208",
-    //     "300","301","302","303","304","305","307","308",
-    //     "400","401","402","403","404","405","406","407","408","409","410","411","412","413","414",
-    //     "415","416","417","421","422","423","424","425","426","427","428","429","431","451",
-    //     "500","501","502","503","504","505","506","507","508","510"}
+	family := "log"
 
+	// Dimensions will be added dynamically
 	responseCode := netdata.NewChart("log", "response_code", "", "Response code", "ops", family, "")
-    // Dimensions added dynamically
-	// for _, status := range(httpStatuses) {
-	// 		dimension := fmt.Sprintf("response_code_%s_%s", status, dim)
-	// 		responseCode.AddDimension(dimension, dimension, netdata.AbsoluteAlgorithm)
-	// 	}
-	// }
 	worker.AddChart(responseCode, collector)
 
 	responseTime := netdata.NewChart("log", "response_time", "", "Response time", "ms", family, "")
-    // Dimensions added dynamically
-	// for _, req := range []string{"min", "max", "avg"} {
-	// 	dimension := fmt.Sprintf("response_time_%s", req)
-	// 	responseTime.AddDimension(dimension, dimension, netdata.AbsoluteAlgorithm)
-	// }
 	worker.AddChart(responseTime, collector)
 
-    bandwidthIn := netdata.NewChart("log", "bandwidth_in", "", "Bandwidth in", "kB", family, "")
-    // Dimensions added dynamically
+	bandwidthIn := netdata.NewChart("log", "bandwidth_in", "", "Bandwidth in", "kB", family, "")
 	worker.AddChart(bandwidthIn, collector)
 
-    bandwidthOut := netdata.NewChart("log", "bandwidth_out", "", "Bandwidth out", "kB", family, "")
-    // Dimensions added dynamically
+	bandwidthOut := netdata.NewChart("log", "bandwidth_out", "", "Bandwidth out", "kB", family, "")
 	worker.AddChart(bandwidthOut, collector)
-
 
 	worker.Run()
 }
