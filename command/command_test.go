@@ -19,9 +19,9 @@ package command
 import (
 	"oionetdata/netdata"
 	"oionetdata/util"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 )
 
 type FakeWorker struct{}
@@ -41,7 +41,7 @@ func keyExists(t *testing.T, data map[string]string, key string) {
 
 func keyPrefixCount(t *testing.T, data map[string]string, prefix string, count int) {
 	counter := 0
-	for key, _ := range data {
+	for key := range data {
 		if strings.HasPrefix(key, prefix) {
 			counter++
 		}
@@ -50,7 +50,6 @@ func keyPrefixCount(t *testing.T, data map[string]string, prefix string, count i
 		t.Fatalf("Expected %d occurrences for prefix %s, got %d: %v", count, prefix, counter, data)
 	}
 }
-
 
 func valueCompare(t *testing.T, data map[string]string, key, value string, equal bool) {
 	if _, ok := data[key]; !ok {
