@@ -36,6 +36,7 @@ $ git clone [this repo] go/src/oionetdata
 $ go get github.com/go-redis/redis
 $ go get github.com/aws/aws-sdk-go
 $ go get gopkg.in/yaml.v2
+$ go get github.com/hpcloud/tail
 $ export GOPATH=${GOPATH:-$(go env GOPATH)}:$(pwd)/go/
 $ cd $(pwd)/go/src/oionetdata
 $ go build ./cmd/openio.plugin/openio.plugin.go;
@@ -47,6 +48,7 @@ $ go build ./cmd/s3roundtrip.plugin/s3roundtrip.plugin.go
 $ go build ./cmd/redis.plugin/redis.plugin.go
 $ go build ./cmd/memcached.plugin/memcached.plugin.go
 $ go build ./cmd/beanstalk.plugin/beanstalk.plugin.go
+$ go build ./cmd/log.plugin/log.plugin.go
 ```
 
 Type in `./[name].plugin -h` to get all available options for each plugin
@@ -64,6 +66,7 @@ $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 $ cp redis.plugin /usr/libexec/netdata/plugins.d/
 $ cp memcached.plugin /usr/libexec/netdata/plugins.d/
 $ cp beanstalk.plugin /usr/libexec/netdata/plugins.d/
+$ cp log.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Ubuntu Xenial
@@ -77,6 +80,7 @@ $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 $ cp redis.plugin /usr/libexec/netdata/plugins.d/
 $ cp memcached.plugin /usr/libexec/netdata/plugins.d/
 $ cp beanstalk.plugin /usr/libexec/netdata/plugins.d/
+$ cp log.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
@@ -98,6 +102,9 @@ Add the following /etc/netdata/netdata.conf:
     command options =
 
 [plugin:fs]
+    update every = 10
+
+[plugin:log]
     update every = 10
 
 [plugin:s3roundtrip]

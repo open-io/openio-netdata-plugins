@@ -121,7 +121,7 @@ func ParseLogConfig(path string) (retry time.Duration, targets map[string]*LogTa
 	if err != nil {
 		return
 	}
-	if yaml.Unmarshal(filtered, &targets); err != nil {
+	if err2 := yaml.Unmarshal(filtered, &targets); err2 != nil {
 		return
 	}
 
@@ -129,7 +129,7 @@ func ParseLogConfig(path string) (retry time.Duration, targets map[string]*LogTa
 }
 
 func (c *collector) Collect() (map[string]string, error) {
-	duration := time.Now().Sub(c.lastCollect).Seconds()
+	duration := time.Since(c.lastCollect).Seconds()
 	c.lastCollect = time.Now()
 	data := map[string]string{}
 
@@ -330,6 +330,4 @@ func (c *collector) tailLogFile(name string, conf *LogTarget) {
 			}
 		}
 	}
-	log.Println("WARN: File watch exited", conf.Path)
-	return
 }
