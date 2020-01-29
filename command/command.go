@@ -94,9 +94,10 @@ func (c *collector) Collect() (map[string]string, error) {
 		// Check if the value can be reported as is
 		if _, err := strconv.ParseFloat(value, 64); cmd.ValueIsLabel || err != nil {
 			// Cleanup similar command entries
-			for ch, _ := range c.data {
-				if strings.HasPrefix(ch, "cmd_" + cmd.Name) {
+			for ch := range c.data {
+				if strings.HasPrefix(ch, "cmd_"+cmd.Name) {
 					delete(c.data, ch)
+					break
 				}
 			}
 			chart = fmt.Sprintf("cmd_%s_%v", cmd.Name, value)
