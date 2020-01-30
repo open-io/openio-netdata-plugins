@@ -93,7 +93,7 @@ func (c *collector) Collect() (map[string]string, error) {
 
 		// Check if the value can be reported as is
 		if _, err := strconv.ParseFloat(value, 64); cmd.ValueIsLabel || err != nil {
-			// Cleanup similar command entries
+			// Cleanup similar command entries from cache and data
 			for ch := range c.data {
 				if strings.HasPrefix(ch, "cmd_"+cmd.Name) {
 					delete(c.data, ch)
@@ -101,6 +101,12 @@ func (c *collector) Collect() (map[string]string, error) {
 				}
 			}
 			chart = fmt.Sprintf("cmd_%s_%v", cmd.Name, value)
+			for ch := range c.cache {
+				if strings.HasPrefix(ch, "cmd_"+cmd.Name) && ch != chart {
+					delete(c.cache, chart)
+					break
+				}
+			}
 			valueAsLabel = true
 		}
 
