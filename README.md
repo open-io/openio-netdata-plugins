@@ -14,6 +14,8 @@ Current collectors are:
 - command (Arbitrary commands, used for version information)
 - fs (Filesystem connector metrics)
 - s3roundtrip (S3 roundtrip check using AWS SDK)
+- redis (redis metrics)
+- memcached (memcached metrics)
 
 Install
 ---
@@ -41,6 +43,8 @@ $ go build ./cmd/container.plugin/container.plugin.go
 $ go build ./cmd/command.plugin/command.plugin.go
 $ go build ./cmd/oiofs.plugin/oiofs.plugin.go
 $ go build ./cmd/s3roundtrip.plugin/s3roundtrip.plugin.go
+$ go build ./cmd/redis.plugin/redis.plugin.go
+$ go build ./cmd/memcached.plugin/memcached.plugin.go
 ```
 
 Type in `./[name].plugin -h` to get all available options for each plugin
@@ -55,6 +59,8 @@ $ cp container.plugin /usr/libexec/netdata/plugins.d/
 $ cp command.plugin /usr/libexec/netdata/plugins.d/
 $ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
 $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
+$ cp redis.plugin /usr/libexec/netdata/plugins.d/
+$ cp memcached.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Ubuntu Xenial
@@ -65,6 +71,8 @@ $ cp container.plugin /usr/lib/x86_64-linux-gnu/netdata/plugins.d/
 $ cp command.plugin /usr/libexec/netdata/plugins.d/
 $ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
 $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
+$ cp redis.plugin /usr/libexec/netdata/plugins.d/
+$ cp memcached.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
@@ -90,6 +98,14 @@ Add the following /etc/netdata/netdata.conf:
 
 [plugin:s3roundtrip]
     update every = 10
+
+[plugin:redis]
+  update every = 10
+  command options = --targets 172.30.2.106:6011:redis
+
+[plugin:memcached]
+  update every = 10
+  command options = --targets 172.30.2.106:6011:memcached
 ```
 
 Create and configure plugin config files
