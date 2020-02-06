@@ -63,7 +63,6 @@ func main() {
 		itemsChart := netdata.NewChart(instance, "items", "", "Items", "count", instance, "memcached.items.")
 		itemsChart.AddDimension("curr_items", "current", netdata.AbsoluteAlgorithm)
 		itemsChart.AddDimension("total_items", "total", netdata.IncrementalAlgorithm)
-		itemsChart.AddDimension("total_items", "total", netdata.IncrementalAlgorithm)
 		worker.AddChart(itemsChart, collector)
 
 		memChart := netdata.NewChart(instance, "memory", "", "Memory", "bytes", instance, "memcached.memory")
@@ -74,7 +73,7 @@ func main() {
 		connectionsChart := netdata.NewChart(instance, "connections", "", "Connections", "count", instance, "memcached.connections")
 		connectionsChart.AddDimension("max_connections", "max", netdata.AbsoluteAlgorithm)
 		connectionsChart.AddDimension("curr_connections", "current", netdata.AbsoluteAlgorithm)
-		connectionsChart.AddDimension("total_connections", "current", netdata.IncrementalAlgorithm)
+		connectionsChart.AddDimension("total_connections", "total", netdata.IncrementalAlgorithm)
 		connectionsChart.AddDimension("rejected_connections", "rejected", netdata.IncrementalAlgorithm)
 		connectionsChart.AddDimension("accepting_conns", "accepting", netdata.AbsoluteAlgorithm)
 		connectionsChart.AddDimension("listen_disabled_num", "disabled", netdata.AbsoluteAlgorithm)
