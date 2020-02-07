@@ -129,7 +129,10 @@ func TestLogCollector(t *testing.T) {
 	// Wait for access files to be seeked by tail
 	time.Sleep(1000000 * time.Nanosecond)
 
-	collector.Collect()
+	_, err := collector.Collect()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	logToFile(access1, test10)
 	logToFile(access2, test20)
