@@ -187,6 +187,31 @@ Restart netdata:
 $ systemctl restart netdata
 ```
 
+#### Log collector
+
+The log collector follows a similar behavior to the netdata python.d web_log. By default, it uses the same configuration file.
+
+Collected metrics:
+
+- Bandwidth in/out for each request
+- Response time (min/max/avg)
+- Response code by code
+
+
+One notable feature is that it allows to tag specific fields. Example:
+
+```sh
+\S+ \S+ \S+ \S+  \S+ (?P<address>\S+) \S+ (?P<method>\S+) (?P<url>\S+) \S+ (?P<code>\d+) \S+ \S+ \S+ (?P<resp_length>\d+|-) (?P<bytes_sent>\d+|-) \S+ \S+ \S+ (?P<resp_time>\d+\.\d+) - (?P<tag_s3_op>\S+) .*
+```
+
+This will add the s3_op to the dimension string, for example:
+
+```sh
+response_code_log_ops{dimension="DELETE.204.OPENIO-oioswift-0.<s3_op>"}
+```
+
+where **s3_op** is the matched string in the associated log line.
+
 Tests
 ---
 

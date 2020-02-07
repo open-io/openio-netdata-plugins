@@ -145,8 +145,8 @@ func (c *collector) Collect() (map[string]string, error) {
 		} else {
 			data["response_time_avg_"+k] = "0"
 		}
-		data["bandwidth_in_"+k] = fmt.Sprintf("%g", float64(v.bwIn/1024)/duration)
-		data["bandwidth_out_"+k] = fmt.Sprintf("%g", float64(v.bwOut/1024)/duration)
+		data["bandwidth_in_"+k] = fmt.Sprintf("%.0f", float64(v.bwIn/1024)/duration)
+		data["bandwidth_out_"+k] = fmt.Sprintf("%.0f", float64(v.bwOut/1024)/duration)
 	}
 
 	c.metrics = &metrics{
@@ -222,7 +222,6 @@ func (c *collector) tailLogFile(name string, conf *LogTarget) {
 			time.Sleep(c.retry * time.Second)
 			continue
 		}
-
 		t, err := tail.TailFile(conf.Path, tailConfig)
 		if err != nil {
 			log.Println("WARN: Error watching file", conf.Path, ":", err)
