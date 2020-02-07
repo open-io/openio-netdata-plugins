@@ -16,6 +16,7 @@ Current collectors are:
 - s3roundtrip (S3 roundtrip check using AWS SDK)
 - redis (redis metrics)
 - memcached (memcached metrics)
+- beanstalk (beanstalk metrics)
 
 Install
 ---
@@ -45,6 +46,7 @@ $ go build ./cmd/oiofs.plugin/oiofs.plugin.go
 $ go build ./cmd/s3roundtrip.plugin/s3roundtrip.plugin.go
 $ go build ./cmd/redis.plugin/redis.plugin.go
 $ go build ./cmd/memcached.plugin/memcached.plugin.go
+$ go build ./cmd/beanstalk.plugin/beanstalk.plugin.go
 ```
 
 Type in `./[name].plugin -h` to get all available options for each plugin
@@ -61,6 +63,7 @@ $ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
 $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 $ cp redis.plugin /usr/libexec/netdata/plugins.d/
 $ cp memcached.plugin /usr/libexec/netdata/plugins.d/
+$ cp beanstalk.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Ubuntu Xenial
@@ -73,6 +76,7 @@ $ cp oiofs.plugin /usr/libexec/netdata/plugins.d/
 $ cp s3roundtrip.plugin /usr/libexec/netdata/plugins.d/
 $ cp redis.plugin /usr/libexec/netdata/plugins.d/
 $ cp memcached.plugin /usr/libexec/netdata/plugins.d/
+$ cp beanstalk.plugin /usr/libexec/netdata/plugins.d/
 ```
 
 Add the following /etc/netdata/netdata.conf:
@@ -105,7 +109,11 @@ Add the following /etc/netdata/netdata.conf:
 
 [plugin:memcached]
   update every = 10
-  command options = --targets 172.30.2.106:6011:memcached
+  command options = --targets 172.30.2.106:6011
+
+[plugin:beanstalk]
+  update every = 10
+  command options = --targets 172.30.2.106:6014:tube1:tube2:tube3
 ```
 
 Create and configure plugin config files

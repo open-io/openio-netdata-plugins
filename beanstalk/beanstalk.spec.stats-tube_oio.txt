@@ -1,0 +1,17 @@
+OK 274
+---
+name: oio
+current-jobs-urgent: 0
+current-jobs-ready: 0
+current-jobs-reserved: 0
+current-jobs-delayed: 0
+current-jobs-buried: 0
+total-jobs: 640670
+current-using: 24
+current-watching: 10
+current-waiting: 10
+cmd-delete: 640670
+cmd-pause-tube: 0
+pause: 0
+pause-time-left: 0
+

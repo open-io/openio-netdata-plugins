@@ -1,0 +1,17 @@
+OK 276
+---
+name: oio-delete
+current-jobs-urgent: 0
+current-jobs-ready: 0
+current-jobs-reserved: 0
+current-jobs-delayed: 0
+current-jobs-buried: 0
+total-jobs: 90110
+current-using: 2
+current-watching: 1
+current-waiting: 1
+cmd-delete: 90110
+cmd-pause-tube: 0
+pause: 0
+pause-time-left: 0
+
