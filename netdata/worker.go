@@ -81,13 +81,6 @@ func (w *worker) AddChart(chart *Chart, params ...Collector) {
 	w.charts[chartID] = chart
 }
 
-func (w *worker) GetChart(chartID string) *Chart {
-	if chart, ok := w.charts[chartID]; ok {
-		return chart
-	}
-	return nil
-}
-
 func (w *worker) indexChart(chartID string, collector Collector) {
 	w.chartsIndex[collector] = append(w.chartsIndex[collector], chartID)
 }
