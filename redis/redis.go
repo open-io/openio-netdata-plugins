@@ -26,12 +26,12 @@ import (
 )
 
 type collector struct {
-	addr    string
+	addr string
 }
 
 func NewCollector(addr string) *collector {
 	return &collector{
-		addr:    addr,
+		addr: addr,
 	}
 }
 
@@ -86,7 +86,7 @@ func (c *collector) Collect() (map[string]string, error) {
 				} else {
 					fmt.Fprintln(os.Stderr, "WARN: received unparseable db notation", kv[1])
 				}
-			// Format role:master or role:slave
+				// Format role:master or role:slave
 			} else if kv[0] == "role" {
 				if kv[1] == "master" {
 					data["is_master"] = "1"

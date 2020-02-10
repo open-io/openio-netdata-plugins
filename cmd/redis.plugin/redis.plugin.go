@@ -45,8 +45,6 @@ func main() {
 		log.Fatalln("ERROR: Redis plugin: missing targets")
 	}
 
-
-
 	writer := netdata.NewDefaultWriter()
 	worker := netdata.NewWorker(time.Duration(intervalSeconds)*time.Second, writer)
 
