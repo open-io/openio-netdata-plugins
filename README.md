@@ -106,6 +106,7 @@ Add the following /etc/netdata/netdata.conf:
 
 [plugin:log]
     update every = 10
+    command options = --conf /etc/netdata/python.d/web_log.conf
 
 [plugin:s3roundtrip]
     update every = 10

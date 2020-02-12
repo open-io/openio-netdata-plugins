@@ -248,8 +248,9 @@ func (c *collector) tailLogFile(name string, conf *LogTarget) {
 
 			codeIdx := index(names, "code")
 			method := index(names, "method")
+			pfx := s[method] + "."
 			if codeIdx > -1 {
-				reqName := s[method] + "." + s[codeIdx] + "." + name + tagString
+				reqName := pfx + s[codeIdx] + "." + name + tagString
 				// NOTE: consider commit at the end to avoid locking N times
 				c.metrics.Lock()
 				if _, ok := c.metrics.Requests[reqName]; ok {
@@ -260,7 +261,7 @@ func (c *collector) tailLogFile(name string, conf *LogTarget) {
 				c.metrics.Unlock()
 			}
 
-			reqName := s[method] + "_" + name + tagString
+			reqName := pfx + name + tagString
 
 			bsIdx := index(names, "bytes_sent")
 			if bsIdx > -1 {

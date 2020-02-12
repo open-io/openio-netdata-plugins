@@ -33,11 +33,15 @@ func main() {
 	}
 	var conf string
 	fs := flag.NewFlagSet("", flag.ExitOnError)
-	fs.StringVar(&conf, "conf", "/etc/netdata/python.d/web_log.conf", "Path to we blog config file")
+	fs.StringVar(&conf, "conf", "", "Path to the log config file")
 	err := fs.Parse(os.Args[2:])
 	if err != nil {
 		log.Fatalln("ERROR: Log plugin: Could not parse args", err)
 	}
+	if _, err := os.Stat(conf); os.IsNotExist(err) {
+		log.Fatalln("ERROR: Log plugin: Could not find config at path: '" + conf + "'")
+	}
+
 	intervalSeconds := collector.ParseIntervalSeconds(os.Args[1])
 
 	writer := netdata.NewDefaultWriter()
@@ -55,10 +59,10 @@ func main() {
 	responseTime := netdata.NewChart("log", "response_time", "", "Response time", "ms", family, "")
 	worker.AddChart(responseTime, collector)
 
-	bandwidthIn := netdata.NewChart("log", "bandwidth_in", "", "Bandwidth in", "kB", family, "")
+	bandwidthIn := netdata.NewChart("log", "bandwidth_in", "", "Bandwidth in", "kBps", family, "")
 	worker.AddChart(bandwidthIn, collector)
 
-	bandwidthOut := netdata.NewChart("log", "bandwidth_out", "", "Bandwidth out", "kB", family, "")
+	bandwidthOut := netdata.NewChart("log", "bandwidth_out", "", "Bandwidth out", "kBps", family, "")
 	worker.AddChart(bandwidthOut, collector)
 
 	worker.Run()
