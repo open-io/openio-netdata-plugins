@@ -34,8 +34,10 @@ func main() {
 		log.Fatalf("argument required")
 	}
 	var conf string
+	var rtBucket bool
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&conf, "conf", "/etc/netdata/s3-roundtrip.conf", "Path to roundtrip config file")
+	fs.BoolVar(&rtBucket, "test-bucket", false, "Monitor bucket operations (create/delete)")
 	err := fs.Parse(os.Args[2:])
 	if err != nil {
 		log.Fatalln("ERROR: S3Roundtrip plugin: Could not parse args", err)
@@ -50,7 +52,7 @@ func main() {
 		log.Fatalln("Could not parse configuration file", err)
 	}
 
-	collector := s3roundtrip.NewCollector(config)
+	collector := s3roundtrip.NewCollector(config, rtBucket)
 	worker.AddCollector(collector)
 
 	responseCode := netdata.NewChart("roundtrip", "response_code", "", "Response code", "ops", collector.Endpoint, "")
