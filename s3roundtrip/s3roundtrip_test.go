@@ -67,6 +67,7 @@ func TestS3Roundtrip(t *testing.T) {
 		dataTtfb:   []byte{},
 		Endpoint:   "test",
 		s3c:        &s3c{s3: mock},
+		rtBucket:   true,
 	}
 	data, err := c.Collect()
 	if err != nil {

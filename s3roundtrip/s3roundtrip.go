@@ -40,17 +40,19 @@ type s3c struct {
 }
 
 type collector struct {
-	config     aws.Config
-	bucket     string
-	object     string
-	data       []byte
-	objectTtfb string
-	dataTtfb   []byte
-	Endpoint   string
-	s3c        *s3c
+	config        aws.Config
+	bucket        string
+	object        string
+	data          []byte
+	objectTtfb    string
+	dataTtfb      []byte
+	Endpoint      string
+	s3c           *s3c
+	bucketCreated bool
+	rtBucket      bool
 }
 
-func NewCollector(conf map[string]string) *collector {
+func NewCollector(conf map[string]string, rtBucket bool) *collector {
 	for _, key := range []string{"endpoint", "access", "secret", "region", "bucket", "object"} {
 		if _, ok := conf[key]; !ok {
 			log.Fatalf("ERROR: cannot load S3 roundtrip collector: missing '%s' key from config", key)
@@ -62,7 +64,7 @@ func NewCollector(conf map[string]string) *collector {
 		timeout, _ = strconv.Atoi(t)
 	}
 
-	var fileSize = 5 * 1024 * 1024 + 2
+	var fileSize = 5*1024*1024 + 2
 	if t, ok := conf["size"]; ok {
 		fileSize, _ = strconv.Atoi(t)
 	}
@@ -82,14 +84,16 @@ func NewCollector(conf map[string]string) *collector {
 	}
 
 	return &collector{
-		config:     config,
-		bucket:     conf["bucket"],
-		object:     conf["object"],
-		data:       make([]byte, fileSize),
-		objectTtfb: conf["object"] + "_ttfb",
-		dataTtfb:   make([]byte, 1),
-		Endpoint:   conf["endpoint"],
-		s3c:        &s3c{s3: s3.New(sess)},
+		config:        config,
+		bucket:        conf["bucket"],
+		object:        conf["object"],
+		data:          make([]byte, fileSize),
+		objectTtfb:    conf["object"] + "_ttfb",
+		dataTtfb:      make([]byte, 1),
+		Endpoint:      conf["endpoint"],
+		s3c:           &s3c{s3: s3.New(sess)},
+		bucketCreated: false,
+		rtBucket:      rtBucket,
 	}
 }
 
@@ -102,8 +106,18 @@ func (c *collector) Collect() (map[string]string, error) {
 		}
 	}
 
-	time, err := c.s3c.mb(c.bucket)
-	register(&data, "mb", code(err), time)
+	if !c.bucketCreated && !c.rtBucket {
+		_, _ = c.s3c.mb(c.bucket)
+		c.bucketCreated = true
+	}
+
+	var time time.Duration
+	var err error
+
+	if c.rtBucket {
+		time, err = c.s3c.mb(c.bucket)
+		register(&data, "mb", code(err), time)
+	}
 
 	time, err = c.s3c.put(c.bucket, c.object, c.data)
 	register(&data, "put", code(err), time)
@@ -126,8 +140,10 @@ func (c *collector) Collect() (map[string]string, error) {
 	time, err = c.s3c.del(c.bucket, c.object)
 	register(&data, "del", code(err), time)
 
-	time, err = c.s3c.rb(c.bucket)
-	register(&data, "rb", code(err), time)
+	if c.rtBucket {
+		time, err = c.s3c.rb(c.bucket)
+		register(&data, "rb", code(err), time)
+	}
 
 	return data, nil
 }
@@ -207,9 +223,9 @@ func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
 
 func (s *s3c) cleanupMPU(bucket, obj string, uploadID *string) {
 	_, err := s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
-	    Bucket:   aws.String(bucket),
-	    Key:      aws.String(obj),
-	    UploadId: uploadID,
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(obj),
+		UploadId: uploadID,
 	})
 	if err != nil {
 		log.Println("WARN: failed to abort MPU", uploadID, err)
@@ -226,8 +242,8 @@ func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
 	if size > mpuSize {
 		var parts = []*s3.CompletedPart{}
 		resCreate, err := s.s3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
-			Bucket:     aws.String(bucket),
-			Key:        aws.String(obj),
+			Bucket: aws.String(bucket),
+			Key:    aws.String(obj),
 		})
 		if err != nil {
 			return time.Since(start), err
@@ -236,11 +252,11 @@ func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
 		for size > 0 {
 			uploadedSize := min(mpuSize, size)
 			input := &s3.UploadPartInput{
-			    Body:       bytes.NewReader(data[:uploadedSize]),
-			    Bucket:     aws.String(bucket),
-			    Key:        aws.String(obj),
-			    PartNumber: aws.Int64(part),
-			    UploadId: resCreate.UploadId,
+				Body:       bytes.NewReader(data[:uploadedSize]),
+				Bucket:     aws.String(bucket),
+				Key:        aws.String(obj),
+				PartNumber: aws.Int64(part),
+				UploadId:   resCreate.UploadId,
 			}
 			resUpload, err := s.s3.UploadPart(input)
 			if err != nil {
@@ -249,7 +265,7 @@ func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
 			}
 
 			parts = append(parts, &s3.CompletedPart{
-				ETag: resUpload.ETag,
+				ETag:       resUpload.ETag,
 				PartNumber: aws.Int64(part),
 			})
 			size = size - uploadedSize
@@ -257,10 +273,10 @@ func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
 		}
 
 		_, err = s.s3.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
-		    Bucket: aws.String(bucket),
-		    Key:    aws.String(obj),
-		    MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
-		    UploadId: resCreate.UploadId,
+			Bucket:          aws.String(bucket),
+			Key:             aws.String(obj),
+			MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
+			UploadId:        resCreate.UploadId,
 		})
 		if err != nil {
 			s.cleanupMPU(bucket, obj, resCreate.UploadId)
