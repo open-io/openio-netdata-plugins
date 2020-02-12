@@ -126,7 +126,7 @@ func (c *collector) Collect() (map[string]string, error) {
 	register(&data, "get", code(err), time)
 
 	timeTTFBPut, err := c.s3c.put(c.bucket, c.objectTtfb, c.dataTtfb)
-	if err != nil {
+	if err == nil {
 		registerTtfb(&data, "put", timeTTFBPut)
 		timeTTFBGet, _ := c.s3c.get(c.bucket, c.objectTtfb)
 		registerTtfb(&data, "get", timeTTFBGet)
