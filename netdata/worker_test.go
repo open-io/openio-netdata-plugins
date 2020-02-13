@@ -64,7 +64,10 @@ func TestWorker(t *testing.T) {
 
 	// dimension bar update
 	data["barID"] = "2"
-	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'fooID' = 1\nSET 'barID' = 2\nEND\n")
+	validateOutputs(t, w, &buf, []string{
+		"BEGIN testType.testID\nSET 'fooID' = 1\nSET 'barID' = 2\nEND\n",
+		"BEGIN testType.testID\nSET 'barID' = 2\nSET 'barID' = 1\nEND\n",
+	})
 
 	delete(data, "fooID")
 	validateOutput(t, w, &buf, "BEGIN testType.testID\nSET 'barID' = 2\nEND\n")
@@ -86,4 +89,16 @@ func validateOutput(t *testing.T, w *worker, buf *bytes.Buffer, expectedOutput s
 		t.Fatalf("unexpected output got\n%q\nexpected\n%q\n", output, expectedOutput)
 	}
 	buf.Reset()
+}
+
+func validateOutputs(t *testing.T, w *worker, buf *bytes.Buffer, expectedOutputs []string) {
+	w.process()
+	output := buf.String()
+	for _, expectedOutput := range expectedOutputs {
+		if output == expectedOutput {
+			buf.Reset()
+			return
+		}
+	}
+	t.Fatalf("unexpected output got\n%q\nexpected\n%q\n", output, expectedOutputs)
 }
