@@ -149,10 +149,7 @@ func (c *collector) Collect() (map[string]string, error) {
 		data["bandwidth_out_"+k] = fmt.Sprintf("%.0f", float64(v.bwOut/1024)/duration)
 	}
 
-	c.metrics = &metrics{
-		Requests: map[string]int64{},
-		PerfData: map[string]*PerfData{},
-	}
+
 
 	for k := range c.metrics.Requests {
 		c.metrics.Requests[k] = 0
@@ -165,6 +162,7 @@ func (c *collector) Collect() (map[string]string, error) {
 			rt:      0,
 		}
 	}
+	c.metrics.Unlock()
 	return data, nil
 }
 
