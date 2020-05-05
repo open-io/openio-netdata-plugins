@@ -17,65 +17,119 @@
 package s3roundtrip
 
 import (
-	"bytes"
+	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 )
 
-const multMs = 10e6
-const mpuSize = int64(5 * 1024 * 1024)
+const multMs = 1e6
 
 type s3c struct {
-	s3 s3iface.S3API
+	s3        s3iface.S3API
+	dl        s3manageriface.DownloaderAPI
+	ul        s3manageriface.UploaderAPI
+	userAgent request.Option
+	timeout   time.Duration
+}
+
+type Object struct {
+	name string
+	data io.Reader
+}
+
+func newObject(name string, size int64) *Object {
+	fd, err := os.Open("/dev/zero")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return &Object{
+		name: name,
+		data: io.LimitReader(fd, size),
+	}
+}
+
+type FakeWriterAt struct {
+	w io.Writer
+}
+
+func (fw FakeWriterAt) WriteAt(p []byte, offset int64) (n int, err error) {
+	return fw.w.Write(p)
 }
 
 type collector struct {
-	config        aws.Config
-	bucket        string
-	object        string
-	data          []byte
-	objectTtfb    string
-	dataTtfb      []byte
-	Endpoint      string
-	s3c           *s3c
-	bucketCreated bool
-	rtBucket      bool
+	madeBucket   bool
+	doMakeBucket bool
+	config       aws.Config
+	bucket       string
+	requests     []string
+	objects      map[string]*Object
+	Endpoint     string
+	s3c          *s3c
 }
 
-func NewCollector(conf map[string]string, rtBucket bool) *collector {
+func NewCollector(conf map[string]string, requests []string) *collector {
 	for _, key := range []string{"endpoint", "access", "secret", "region", "bucket", "object"} {
 		if _, ok := conf[key]; !ok {
 			log.Fatalf("ERROR: cannot load S3 roundtrip collector: missing '%s' key from config", key)
 		}
 	}
 
-	var timeout = 5
+	var timeout = 15 * time.Second
 	if t, ok := conf["timeout"]; ok {
-		timeout, _ = strconv.Atoi(t)
+		value, err := strconv.Atoi(t)
+		if err != nil {
+			log.Fatalln("Invalid value for timeout, need integer", value)
+		}
+		timeout = time.Duration(value) * time.Second
 	}
 
-	var fileSize = 5*1024*1024 + 2
+	var mpuSize = 5 * 1024 * 1024
+	if t, ok := conf["mpu_size"]; ok {
+		value, _ := strconv.Atoi(t)
+		if value < mpuSize {
+			log.Fatalln("Won't proceed; configured MPU size is lower that minimum MPU Size")
+		}
+		mpuSize = value
+	}
+
+	fileSize := mpuSize - 1
 	if t, ok := conf["size"]; ok {
 		fileSize, _ = strconv.Atoi(t)
 	}
 
-	var config = aws.Config{
+	doMakeBucket := false
+	if v, ok := conf["make_bucket"]; ok {
+		doMakeBucket = (v == "true")
+	}
+
+	config := aws.Config{
 		Region:           aws.String(conf["region"]),
 		Credentials:      credentials.NewStaticCredentials(conf["access"], conf["secret"], ""),
 		Endpoint:         aws.String(conf["endpoint"]),
 		S3ForcePathStyle: aws.Bool(true),
 		MaxRetries:       aws.Int(1),
-		HTTPClient:       &http.Client{Timeout: time.Second * time.Duration(timeout)},
+		HTTPClient: &http.Client{
+			Timeout: timeout,
+			Transport: &http.Transport{
+				ExpectContinueTimeout: 0,
+			},
+		},
 	}
 
 	sess, err := session.NewSession(&config)
@@ -83,76 +137,92 @@ func NewCollector(conf map[string]string, rtBucket bool) *collector {
 		log.Fatalln(err)
 	}
 
+	s3 := s3.New(sess)
+
+	uaString := "OIO-S3RT"
+	if v, ok := conf["user_agent"]; ok {
+		uaString = v
+	}
+	userAgent := request.WithAppendUserAgent(uaString)
+
 	return &collector{
-		config:        config,
-		bucket:        conf["bucket"],
-		object:        conf["object"],
-		data:          make([]byte, fileSize),
-		objectTtfb:    conf["object"] + "_ttfb",
-		dataTtfb:      make([]byte, 1),
-		Endpoint:      conf["endpoint"],
-		s3c:           &s3c{s3: s3.New(sess)},
-		bucketCreated: false,
-		rtBucket:      rtBucket,
+		madeBucket:   false,
+		doMakeBucket: doMakeBucket,
+		config:       config,
+		requests:     requests,
+		bucket:       conf["bucket"],
+		objects: map[string]*Object{
+			"simple": newObject(conf["object"], int64(fileSize)),
+			"ttfb":   newObject(conf["object"]+"_ttfb", int64(1)),
+			"mpu":    newObject(conf["object"]+"_mpu", int64(mpuSize+1)),
+		},
+		Endpoint: conf["endpoint"],
+		s3c: &s3c{s3: s3,
+			dl: s3manager.NewDownloaderWithClient(s3, func(d *s3manager.Downloader) {
+				d.RequestOptions = append(d.RequestOptions, userAgent)
+			}),
+			ul: s3manager.NewUploaderWithClient(s3, func(u *s3manager.Uploader) {
+				u.PartSize = int64(mpuSize)
+				u.RequestOptions = append(u.RequestOptions, userAgent)
+			}),
+			userAgent: userAgent,
+			timeout:   timeout,
+		},
 	}
 }
 
 func (c *collector) Collect() (map[string]string, error) {
 	data := make(map[string]string)
 
-	for _, req := range []string{"get", "put", "del", "rb", "mb"} {
+	for _, req := range c.requests {
 		for _, dim := range []string{"2xx", "4xx", "5xx", "other"} {
 			data[fmt.Sprintf("response_code_%s_%s", req, dim)] = "0"
 		}
 	}
 
-	if !c.bucketCreated && !c.rtBucket {
-		_, _ = c.s3c.mb(c.bucket)
-		c.bucketCreated = true
-	}
-
-	var time time.Duration
-	var err error
-
-	if c.rtBucket {
-		time, err = c.s3c.mb(c.bucket)
+	if c.doMakeBucket {
+		time, err := c.s3c.mb(c.bucket)
 		register(&data, "mb", code(err), time)
+	} else if !c.doMakeBucket && !c.madeBucket {
+		_, _ = c.s3c.mb(c.bucket)
+		c.madeBucket = true
 	}
 
-	time, err = c.s3c.put(c.bucket, c.object, c.data)
-	register(&data, "put", code(err), time)
-
-	time, err = c.s3c.get(c.bucket, c.object)
-	register(&data, "get", code(err), time)
-
-	timeTTFBPut, err := c.s3c.put(c.bucket, c.objectTtfb, c.dataTtfb)
-	if err == nil {
-		registerTtfb(&data, "put", timeTTFBPut)
-		timeTTFBGet, _ := c.s3c.get(c.bucket, c.objectTtfb)
-		registerTtfb(&data, "get", timeTTFBGet)
-
-		_, _ = c.s3c.del(c.bucket, c.objectTtfb)
+	for type_, obj := range c.objects {
+		switch type_ {
+		case "ttfb":
+			timeTTFBPut, err := c.s3c.put(c.bucket, obj)
+			if err == nil {
+				registerTtfb(&data, "put", timeTTFBPut)
+				timeTTFBGet, _ := c.s3c.get(c.bucket, obj)
+				registerTtfb(&data, "get", timeTTFBGet)
+				_, _ = c.s3c.del(c.bucket, obj)
+			}
+		default:
+			pfx := ""
+			if type_ == "mpu" {
+				pfx = "mpu_"
+			}
+			timePut, err := c.s3c.put(c.bucket, obj)
+			if err == nil {
+				timeGet, err := c.s3c.get(c.bucket, obj)
+				register(&data, pfx+"get", code(err), timeGet)
+				timeDel, err := c.s3c.del(c.bucket, obj)
+				register(&data, pfx+"del", code(err), timeDel)
+			}
+			register(&data, pfx+"put", code(err), timePut)
+		}
 	}
 
-	time, err = c.s3c.ls(c.bucket, 1000)
-	register(&data, "ls", code(err), time)
+	timeLs, err := c.s3c.ls(c.bucket, 1000)
+	register(&data, "ls", code(err), timeLs)
 
-	time, err = c.s3c.del(c.bucket, c.object)
-	register(&data, "del", code(err), time)
-
-	if c.rtBucket {
-		time, err = c.s3c.rb(c.bucket)
-		register(&data, "rb", code(err), time)
+	if c.doMakeBucket {
+		timeRb, err := c.s3c.rb(c.bucket)
+		register(&data, "rb", code(err), timeRb)
 	}
 
 	return data, nil
-}
-
-func min(x, y int64) int64 {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 func code(err error) string {
@@ -181,143 +251,75 @@ func registerTtfb(data *map[string]string, req string, d time.Duration) {
 }
 
 func (s *s3c) mb(bucket string) (time.Duration, error) {
-	input := s3.CreateBucketInput{
+	input := &s3.CreateBucketInput{
 		Bucket: aws.String(bucket),
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
 	start := time.Now()
-	_, err := s.s3.CreateBucket(&input)
-	if aerr, ok := err.(awserr.Error); ok {
-		if aerr.Code() != s3.ErrCodeBucketAlreadyExists {
-			return time.Since(start), nil
-		}
-	} else {
-		return time.Since(start), err
+	_, err := s.s3.CreateBucketWithContext(ctx, input, s.userAgent)
+	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou {
+		return time.Since(start), nil
 	}
 	return time.Since(start), nil
 }
 
 func (s *s3c) rb(bucket string) (time.Duration, error) {
-	input := s3.DeleteBucketInput{
+	input := &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket),
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
 	start := time.Now()
-	_, err := s.s3.DeleteBucket(&input)
-	if err != nil {
-		return time.Since(start), err
-	}
-	return time.Since(start), nil
-}
-
-func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
-	input := s3.ListObjectsInput{
-		Bucket:  aws.String(bucket),
-		MaxKeys: aws.Int64(keys),
-	}
-	start := time.Now()
-	_, err := s.s3.ListObjects(&input)
-	if err != nil {
-		return time.Since(start), err
-	}
-	return time.Since(start), nil
-}
-
-func (s *s3c) cleanupMPU(bucket, obj string, uploadID *string) {
-	_, err := s.s3.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
-		Bucket:   aws.String(bucket),
-		Key:      aws.String(obj),
-		UploadId: uploadID,
-	})
-	if err != nil {
-		log.Println("WARN: failed to abort MPU", uploadID, err)
-	}
-}
-
-func (s *s3c) put(bucket, obj string, data []byte) (time.Duration, error) {
-	var part = int64(1)
-	var size = int64(len(data))
-
-	start := time.Now()
-
-	// Upload in MPU when size > MPU_SIZE
-	if size > mpuSize {
-		var parts = []*s3.CompletedPart{}
-		resCreate, err := s.s3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
-			Bucket: aws.String(bucket),
-			Key:    aws.String(obj),
-		})
-		if err != nil {
-			return time.Since(start), err
-		}
-
-		for size > 0 {
-			uploadedSize := min(mpuSize, size)
-			input := &s3.UploadPartInput{
-				Body:       bytes.NewReader(data[:uploadedSize]),
-				Bucket:     aws.String(bucket),
-				Key:        aws.String(obj),
-				PartNumber: aws.Int64(part),
-				UploadId:   resCreate.UploadId,
-			}
-			resUpload, err := s.s3.UploadPart(input)
-			if err != nil {
-				s.cleanupMPU(bucket, obj, resCreate.UploadId)
-				return time.Since(start), err
-			}
-
-			parts = append(parts, &s3.CompletedPart{
-				ETag:       resUpload.ETag,
-				PartNumber: aws.Int64(part),
-			})
-			size = size - uploadedSize
-			part++
-		}
-
-		_, err = s.s3.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
-			Bucket:          aws.String(bucket),
-			Key:             aws.String(obj),
-			MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
-			UploadId:        resCreate.UploadId,
-		})
-		if err != nil {
-			s.cleanupMPU(bucket, obj, resCreate.UploadId)
-			return time.Since(start), err
-		}
-		return time.Since(start), nil
-	}
-
-	_, err := s.s3.PutObject(&s3.PutObjectInput{
-		Body:   bytes.NewReader(data),
-		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
-	})
-	if err != nil {
-		return time.Since(start), err
-	}
-	return time.Since(start), nil
-}
-
-func (s *s3c) get(bucket, obj string) (time.Duration, error) {
-	input := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
-	}
-	start := time.Now()
-	_, err := s.s3.GetObject(input)
-	if err != nil {
-		return time.Since(start), err
-	}
+	_, err := s.s3.DeleteBucketWithContext(ctx, input, s.userAgent)
 	return time.Since(start), err
 }
 
-func (s *s3c) del(bucket, obj string) (time.Duration, error) {
+func (s *s3c) ls(bucket string, keys int64) (time.Duration, error) {
+	input := &s3.ListObjectsInput{
+		Bucket:  aws.String(bucket),
+		MaxKeys: aws.Int64(keys),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+	start := time.Now()
+	_, err := s.s3.ListObjectsWithContext(ctx, input, s.userAgent)
+	return time.Since(start), err
+}
+
+func (s *s3c) get(bucket string, obj *Object) (time.Duration, error) {
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(obj.name),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+	start := time.Now()
+	_, err := s.dl.DownloadWithContext(ctx, FakeWriterAt{w: ioutil.Discard}, input)
+	return time.Since(start), err
+}
+
+func (s *s3c) put(bucket string, obj *Object) (time.Duration, error) {
+	input := &s3manager.UploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(obj.name),
+		Body:   obj.data,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+	start := time.Now()
+	_, err := s.ul.UploadWithContext(ctx, input)
+	return time.Since(start), err
+}
+
+func (s *s3c) del(bucket string, obj *Object) (time.Duration, error) {
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
+		Key:    aws.String(obj.name),
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
 	start := time.Now()
-	_, err := s.s3.DeleteObject(input)
-	if err != nil {
-		return time.Since(start), err
-	}
+	_, err := s.s3.DeleteObjectWithContext(ctx, input, s.userAgent)
 	return time.Since(start), err
 }
