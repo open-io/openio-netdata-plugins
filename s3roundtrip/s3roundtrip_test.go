@@ -17,56 +17,67 @@
 package s3roundtrip
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/golang/mock/gomock"
+	"io/ioutil"
 	"oionetdata/mock_s3iface"
+	"oionetdata/mock_s3manageriface"
 	"testing"
 )
+
+var requests = []string{"get", "put", "del", "rb", "mb", "ls", "mpu_put", "mpu_get", "mpu_del"}
 
 func TestS3Roundtrip(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	bucket := "test"
-	obj := "test"
+	obj := newObject("testrequestsobj", 5*1024*1024)
 
 	mock := mock_s3iface.NewMockS3API(ctrl)
-	mock.EXPECT().CreateBucket(&s3.CreateBucketInput{
+	mock.EXPECT().CreateBucketWithContext(gomock.Any(), &s3.CreateBucketInput{
 		Bucket: aws.String(bucket),
-	}).AnyTimes()
-	mock.EXPECT().PutObject(&s3.PutObjectInput{
-		Body:   bytes.NewReader([]byte{}),
+	}, gomock.Any()).AnyTimes()
+	mock.EXPECT().DeleteObjectWithContext(gomock.Any(), &s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
-	}).AnyTimes()
-	mock.EXPECT().GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
-	}).AnyTimes()
-	mock.EXPECT().DeleteObject(&s3.DeleteObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(obj),
-	}).AnyTimes()
-	mock.EXPECT().ListObjects(&s3.ListObjectsInput{
+		Key:    aws.String(obj.name),
+	}, gomock.Any()).AnyTimes()
+	mock.EXPECT().ListObjectsWithContext(gomock.Any(), &s3.ListObjectsInput{
 		Bucket:  aws.String(bucket),
 		MaxKeys: aws.Int64(1000),
-	}).AnyTimes()
-	mock.EXPECT().DeleteBucket(&s3.DeleteBucketInput{
+	}, gomock.Any()).AnyTimes()
+	mock.EXPECT().DeleteBucketWithContext(gomock.Any(), &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket),
+	}, gomock.Any()).AnyTimes()
+
+	mockS3UL := mock_s3manageriface.NewMockUploaderAPI(ctrl)
+	mockS3UL.EXPECT().UploadWithContext(gomock.Any(), &s3manager.UploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(obj.name),
+		Body:   obj.data,
+	}).AnyTimes()
+	mockS3DL := mock_s3manageriface.NewMockDownloaderAPI(ctrl)
+	mockS3DL.EXPECT().DownloadWithContext(gomock.Any(), FakeWriterAt{w: ioutil.Discard}, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(obj.name),
 	}).AnyTimes()
 
 	c := collector{
-		config:     aws.Config{},
-		bucket:     "test",
-		object:     "test",
-		data:       []byte{},
-		objectTtfb: "test",
-		dataTtfb:   []byte{},
-		Endpoint:   "test",
-		s3c:        &s3c{s3: mock},
+		madeBucket:   false,
+		doMakeBucket: true,
+		requests:     requests,
+		objects: map[string]*Object{
+			"simple": obj,
+			"ttfb":   obj,
+			"mpu":    obj,
+		},
+		config:   aws.Config{},
+		bucket:   "test",
+		Endpoint: "test",
+		s3c:      &s3c{s3: mock, dl: mockS3DL, ul: mockS3UL},
 	}
 	data, err := c.Collect()
 	if err != nil {
@@ -80,7 +91,7 @@ func TestS3Roundtrip(t *testing.T) {
 		"other": "0",
 	}
 
-	for _, method := range []string{"get", "put", "del", "rb", "mb"} {
+	for _, method := range requests {
 		for k, expectedValue := range testResults {
 			key := fmt.Sprintf("response_code_%s_%s", method, k)
 			if v, ok := data[key]; !ok {

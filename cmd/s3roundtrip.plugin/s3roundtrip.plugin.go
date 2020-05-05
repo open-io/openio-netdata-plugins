@@ -29,6 +29,8 @@ import (
 	"oionetdata/util"
 )
 
+var requests = []string{"get", "put", "del", "rb", "mb", "ls", "mpu_put", "mpu_get", "mpu_del"}
+
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("argument required")
@@ -50,11 +52,11 @@ func main() {
 		log.Fatalln("Could not parse configuration file", err)
 	}
 
-	collector := s3roundtrip.NewCollector(config)
+	collector := s3roundtrip.NewCollector(config, requests)
 	worker.AddCollector(collector)
 
 	responseCode := netdata.NewChart("roundtrip", "response_code", "", "Response code", "ops", collector.Endpoint, "")
-	for _, req := range []string{"get", "put", "del", "rb", "mb", "ls"} {
+	for _, req := range requests {
 		for _, dim := range []string{"2xx", "4xx", "5xx", "other"} {
 			dimension := fmt.Sprintf("response_code_%s_%s", req, dim)
 			responseCode.AddDimension(dimension, dimension, netdata.AbsoluteAlgorithm)
@@ -63,7 +65,7 @@ func main() {
 	worker.AddChart(responseCode, collector)
 
 	responseTime := netdata.NewChart("roundtrip", "response_time", "", "Response time", "ms", collector.Endpoint, "")
-	for _, req := range []string{"get", "put", "del", "rb", "mb", "ls"} {
+	for _, req := range requests {
 		dimension := fmt.Sprintf("response_time_%s", req)
 		responseTime.AddDimension(dimension, dimension, netdata.AbsoluteAlgorithm)
 	}
