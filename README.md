@@ -104,6 +104,18 @@ object=file-roundtrip
 timeout=3
 ```
 
+Optionally you can add:
+
+```
+size=500000
+mpu_size=50000000
+make_bucket=true
+user_agent=OIO-S3RT
+```
+
+To control simple object size, MPU size, and whether to roundtrip bucket creation
+
+For backward-compatibility, .conf files are still accepted:
 ```
 # /etc/netdata/commands.conf
 openio_version=rpm -q --qf "%{VERSION}\n" openio-sds-server
@@ -141,6 +153,7 @@ Mocks for S3 plugin have been generated as follows:
 
 ```sh
 mockgen github.com/aws/aws-sdk-go/service/s3/s3iface S3API > s3roundtrip/mocks.go
+mockgen github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface UploaderAPI,DownloaderAPI > mock_s3manageriface/mock_s3manageriface.go
 ```
 
 TODO
