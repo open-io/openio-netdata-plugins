@@ -41,6 +41,7 @@ import (
 const multMs = 1e6
 
 type s3c struct {
+	src       *os.File
 	s3        s3iface.S3API
 	dl        s3manageriface.DownloaderAPI
 	ul        s3manageriface.UploaderAPI
@@ -50,17 +51,13 @@ type s3c struct {
 
 type Object struct {
 	name string
-	data io.Reader
+	size int64
 }
 
 func newObject(name string, size int64) *Object {
-	fd, err := os.Open("/dev/zero")
-	if err != nil {
-		log.Fatalln(err)
-	}
 	return &Object{
 		name: name,
-		data: io.LimitReader(fd, size),
+		size: size,
 	}
 }
 
@@ -145,6 +142,11 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 	}
 	userAgent := request.WithAppendUserAgent(uaString)
 
+	fd, err := os.Open("/dev/zero")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	return &collector{
 		madeBucket:   false,
 		doMakeBucket: doMakeBucket,
@@ -158,6 +160,7 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 		},
 		Endpoint: conf["endpoint"],
 		s3c: &s3c{s3: s3,
+			src: fd,
 			dl: s3manager.NewDownloaderWithClient(s3, func(d *s3manager.Downloader) {
 				d.RequestOptions = append(d.RequestOptions, userAgent)
 			}),
@@ -169,6 +172,10 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 			timeout:   timeout,
 		},
 	}
+}
+
+func (c *collector) Cleanup() {
+	c.s3c.src.Close()
 }
 
 func (c *collector) Collect() (map[string]string, error) {
@@ -303,7 +310,7 @@ func (s *s3c) put(bucket string, obj *Object) (time.Duration, error) {
 	input := &s3manager.UploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(obj.name),
-		Body:   obj.data,
+		Body:   io.LimitReader(s.src, obj.size),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()

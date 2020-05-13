@@ -55,6 +55,7 @@ func main() {
 	}
 
 	collector := s3roundtrip.NewCollector(config, requests)
+	defer collector.Cleanup()
 	worker.AddCollector(collector)
 
 	responseCode := netdata.NewChart("roundtrip", "response_code", "", "Response code", "ops", collector.Endpoint, "")
