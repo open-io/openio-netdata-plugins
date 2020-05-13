@@ -104,16 +104,15 @@ object=file-roundtrip
 timeout=3
 ```
 
-Optionally you can add:
+Optional parameters:
 
-```
-size=500000
-mpu_size=50000000
-make_bucket=true
-user_agent=OIO-S3RT
-```
-
-To control simple object size, MPU size, and whether to roundtrip bucket creation
+| Parameter   | Default      | Description                                                        |
+| ----------- | ------------ | ------------------------------------------------------------------ |
+| size        | mpu_size - 1 | Size in bytes for objects uploaded without MPU, must be < mpu_size |
+| mpu_size    | 5242880      | MPU part size in bytes, must be >= default                         |
+| make_bucket | false        | Whether to roundtrip bucket creation                               |
+| user_agent  | OIO-S3RT     | Customizable user agent part; this is not strictly the user agent! |
+| ram_buffers | true         | Store data in RAM instead of using /dev/zero + /dev/null           |
 
 For backward-compatibility, .conf files are still accepted:
 ```

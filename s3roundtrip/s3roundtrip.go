@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"bytes"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -41,7 +42,8 @@ import (
 const multMs = 1e6
 
 type s3c struct {
-	src       *os.File
+	src       io.ReadCloser
+	dst       io.Writer
 	s3        s3iface.S3API
 	dl        s3manageriface.DownloaderAPI
 	ul        s3manageriface.UploaderAPI
@@ -115,6 +117,11 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 		doMakeBucket = (v == "true")
 	}
 
+	ramBuffers := true
+	if v, ok := conf["ram_buffers"]; ok {
+		ramBuffers = (v == "false")
+	}
+
 	config := aws.Config{
 		Region:           aws.String(conf["region"]),
 		Credentials:      credentials.NewStaticCredentials(conf["access"], conf["secret"], ""),
@@ -142,10 +149,7 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 	}
 	userAgent := request.WithAppendUserAgent(uaString)
 
-	fd, err := os.Open("/dev/zero")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	input, output := makeInputOutput(ramBuffers, max(mpuSize, fileSize))
 
 	return &collector{
 		madeBucket:   false,
@@ -160,7 +164,8 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 		},
 		Endpoint: conf["endpoint"],
 		s3c: &s3c{s3: s3,
-			src: fd,
+			src: input,
+			dst: output,
 			dl: s3manager.NewDownloaderWithClient(s3, func(d *s3manager.Downloader) {
 				d.RequestOptions = append(d.RequestOptions, userAgent)
 			}),
@@ -173,6 +178,26 @@ func NewCollector(conf map[string]string, requests []string) *collector {
 		},
 	}
 }
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func makeInputOutput(ramBuffers bool, size int) (io.ReadCloser, io.Writer) {
+	if ramBuffers {
+		buf := bytes.NewBuffer(make([]byte, size))
+		return ioutil.NopCloser(buf), buf
+	}
+	fd, err := os.Open("/dev/zero")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return fd, ioutil.Discard
+}
+
 
 func (c *collector) Cleanup() {
 	c.s3c.src.Close()
@@ -302,7 +327,7 @@ func (s *s3c) get(bucket string, obj *Object) (time.Duration, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 	start := time.Now()
-	_, err := s.dl.DownloadWithContext(ctx, FakeWriterAt{w: ioutil.Discard}, input)
+	_, err := s.dl.DownloadWithContext(ctx, FakeWriterAt{w: s.dst}, input)
 	return time.Since(start), err
 }
 
