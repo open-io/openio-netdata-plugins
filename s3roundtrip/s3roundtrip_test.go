@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/golang/mock/gomock"
 	"io/ioutil"
 	"oionetdata/mock_s3iface"
@@ -54,11 +53,7 @@ func TestS3Roundtrip(t *testing.T) {
 	}, gomock.Any()).AnyTimes()
 
 	mockS3UL := mock_s3manageriface.NewMockUploaderAPI(ctrl)
-	mockS3UL.EXPECT().UploadWithContext(gomock.Any(), &s3manager.UploadInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(obj.name),
-		Body:   obj.data,
-	}).AnyTimes()
+	mockS3UL.EXPECT().UploadWithContext(gomock.Any(),  gomock.Any()).AnyTimes()
 	mockS3DL := mock_s3manageriface.NewMockDownloaderAPI(ctrl)
 	mockS3DL.EXPECT().DownloadWithContext(gomock.Any(), FakeWriterAt{w: ioutil.Discard}, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
