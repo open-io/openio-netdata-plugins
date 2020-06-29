@@ -77,6 +77,7 @@ func main() {
 	ttfb := netdata.NewChart("roundtrip", "ttfb", "", "Time to first byte", "ms", collector.Endpoint, "")
 	ttfb.AddDimension("ttfb_put", "ttfb_put", netdata.AbsoluteAlgorithm)
 	ttfb.AddDimension("ttfb_get", "ttfb_get", netdata.AbsoluteAlgorithm)
+	ttfb.AddDimension("ttfb_get_cache", "ttfb_get_cache", netdata.AbsoluteAlgorithm)
 	worker.AddChart(ttfb, collector)
 
 	worker.Run()
