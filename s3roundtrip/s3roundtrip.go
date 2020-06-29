@@ -17,6 +17,7 @@
 package s3roundtrip
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -26,7 +27,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"bytes"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -198,7 +198,6 @@ func makeInputOutput(ramBuffers bool, size int) (io.ReadCloser, io.Writer) {
 	return fd, ioutil.Discard
 }
 
-
 func (c *collector) Cleanup() {
 	c.s3c.src.Close()
 }
@@ -228,6 +227,8 @@ func (c *collector) Collect() (map[string]string, error) {
 				registerTtfb(&data, "put", timeTTFBPut)
 				timeTTFBGet, _ := c.s3c.get(c.bucket, obj)
 				registerTtfb(&data, "get", timeTTFBGet)
+				timeTTFBGet, _ := c.s3c.get(c.bucket, obj)
+				registerTtfb(&data, "get_cache", timeTTFBGet)
 				_, _ = c.s3c.del(c.bucket, obj)
 			}
 		default:
