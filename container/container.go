@@ -112,19 +112,21 @@ type bucketInfoStruct struct {
 }
 
 // Collect -- collect container metrics
-func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan netdata.Metric) error {
-	bucketInfoStr, err := scriptBucketInfo.Run(client, []string{}, 0).Result()
-	if err != nil {
-		return err
-	}
-	bucketInfo := map[string]bucketInfoStruct{}
-	if err := json.Unmarshal([]byte(bucketInfoStr.(string)), &bucketInfo); err != nil {
-		return err
-	}
-	for name, info := range bucketInfo{
-		bucket := strings.Split(name, ":")[1]
-		netdata.Update("account_bucket_kilobytes", bucket, fmt.Sprintf("%d", info.Bytes/1000), c)
-		netdata.Update("account_bucket_objects", bucket, fmt.Sprintf("%d", info.Objects), c)
+func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool, c chan netdata.Metric) error {
+	if bucketdb != nil {
+		bucketInfoStr, err := scriptBucketInfo.Run(bucketdb, []string{}, 0).Result()
+		if err != nil {
+			return err
+		}
+		bucketInfo := map[string]bucketInfoStruct{}
+		if err := json.Unmarshal([]byte(bucketInfoStr.(string)), &bucketInfo); err != nil {
+			return err
+		}
+		for name, info := range bucketInfo{
+			bucket := strings.Split(name, ":")[1]
+			netdata.Update("account_bucket_kilobytes", bucket, fmt.Sprintf("%d", info.Bytes/1000), c)
+			netdata.Update("account_bucket_objects", bucket, fmt.Sprintf("%d", info.Objects), c)
+		}
 	}
 
 	accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
