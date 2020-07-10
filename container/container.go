@@ -61,13 +61,11 @@ var scriptBucketInfo = redis.NewScript(`
 	local buckets = redis.call("keys", "bucket:*");
 	local res = {}
 	for i, bucket in ipairs(buckets) do
-	    if i % 2 == 1 then
-	        res[bucket] = {
-	            account = redis.call("hget", bucket, "account"),
-	            objects = tonumber(redis.call("hget", bucket, "objects")),
-	            bytes = tonumber(redis.call("hget", bucket, "bytes")),
-	        }
-	    end;
+      res[bucket] = {
+          account = redis.call("hget", bucket, "account"),
+          objects = tonumber(redis.call("hget", bucket, "objects")),
+          bytes = tonumber(redis.call("hget", bucket, "bytes")),
+      }
 	end;
 	return cjson.encode(res);`)
 
