@@ -22,6 +22,7 @@ import (
 	"oionetdata/netdata"
 	"oionetdata/util"
 	"path"
+	"strings"
 	"path/filepath"
 	"strconv"
 
@@ -55,6 +56,20 @@ var scriptListCont = redis.NewScript(`
     end;
     return cjson.encode(res);
 `)
+
+var scriptBucketInfo = redis.NewScript(`
+	local buckets = redis.call("keys", "bucket:*");
+	local res = {}
+	for i, bucket in ipairs(buckets) do
+	    if i % 2 == 1 then
+	        res[bucket] = {
+	            account = redis.call("hget", bucket, "account"),
+	            objects = tonumber(redis.call("hget", bucket, "objects")),
+	            bytes = tonumber(redis.call("hget", bucket, "bytes")),
+	        }
+	    end;
+	end;
+	return cjson.encode(res);`)
 
 var scriptAcctInfo = redis.NewScript(`
 	local accts = redis.call("hgetall", "accounts:")
@@ -92,8 +107,27 @@ func RedisAddr(basePath string, ns string) (string, error) {
 	return "", fmt.Errorf("invalid redis conf")
 }
 
+type bucketInfoStruct struct {
+		Account string `json:"account"`
+		Objects int64  `json:"objects"`
+		Bytes   int64  `json:"bytes"`
+}
+
 // Collect -- collect container metrics
 func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan netdata.Metric) error {
+	bucketInfoStr, err := scriptBucketInfo.Run(client, []string{}, 0).Result()
+	if err != nil {
+		return err
+	}
+	bucketInfo := map[string]bucketInfoStruct{}
+	if err := json.Unmarshal([]byte(bucketInfoStr.(string)), &bucketInfo); err != nil {
+		return err
+	}
+	for name, info := range bucketInfo{
+		bucket := strings.Split(name, ":")[1]
+		netdata.Update("account_bucket_kilobytes", bucket, fmt.Sprintf("%d", info.Bytes/1000), c)
+		netdata.Update("account_bucket_objects", bucket, fmt.Sprintf("%d", info.Objects), c)
+	}
 
 	accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
 	if err != nil {
