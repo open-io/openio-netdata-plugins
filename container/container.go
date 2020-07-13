@@ -17,15 +17,15 @@
 package container
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"oionetdata/netdata"
 	"oionetdata/util"
 	"path"
-	"strings"
 	"path/filepath"
 	"strconv"
-	"context"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -80,7 +80,6 @@ var scriptAcctInfo = redis.NewScript(`
                 local acct_key = "account:" .. acc;
                 res[index] = {acc, redis.call('HGET', acct_key, 'bytes'), redis.call("HGET", acct_key, 'objects')}
                 index = index + 1
-
         end;
 	end;
 	return cjson.encode(res);
@@ -108,9 +107,9 @@ func RedisAddr(basePath string, ns string) (string, error) {
 }
 
 type bucketInfoStruct struct {
-		Account string `json:"account"`
-		Objects int64  `json:"objects"`
-		Bytes   int64  `json:"bytes"`
+	Account string `json:"account"`
+	Objects int64  `json:"objects"`
+	Bytes   int64  `json:"bytes"`
 }
 
 // Collect -- collect container metrics
@@ -129,8 +128,8 @@ func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool
 		if err := json.Unmarshal([]byte(bucketInfoStr.(string)), &bucketInfo); err != nil {
 			return err
 		}
-		for name, info := range bucketInfo{
-			bucket := strings.Split(name, ":")[1]
+		for name, info := range bucketInfo {
+			bucket := info.Account + "." + strings.Split(name, ":")[1]
 			netdata.Update("account_bucket_kilobytes", bucket, fmt.Sprintf("%d", info.Bytes/1000), c)
 			netdata.Update("account_bucket_objects", bucket, fmt.Sprintf("%d", info.Objects), c)
 		}
