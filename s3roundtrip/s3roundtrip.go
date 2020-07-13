@@ -227,8 +227,8 @@ func (c *collector) Collect() (map[string]string, error) {
 				registerTtfb(&data, "put", timeTTFBPut)
 				timeTTFBGet, _ := c.s3c.get(c.bucket, obj)
 				registerTtfb(&data, "get", timeTTFBGet)
-				timeTTFBGet, _ := c.s3c.get(c.bucket, obj)
-				registerTtfb(&data, "get_cache", timeTTFBGet)
+				timeTTFBGetCache, _ := c.s3c.get(c.bucket, obj)
+				registerTtfb(&data, "get_cache", timeTTFBGetCache)
 				_, _ = c.s3c.del(c.bucket, obj)
 			}
 		default:
