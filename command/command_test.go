@@ -17,7 +17,7 @@
 package command
 
 import (
-	"oionetdata/netdata"
+	"github.com/open-io/openio-netdata-plugins/netdata"
 	"testing"
 	"time"
 )

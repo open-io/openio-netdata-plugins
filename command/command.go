@@ -19,7 +19,7 @@ package command
 import (
 	"fmt"
 	"log"
-	"oionetdata/netdata"
+	"github.com/open-io/openio-netdata-plugins/netdata"
 	"os/exec"
 	"strings"
 	"time"

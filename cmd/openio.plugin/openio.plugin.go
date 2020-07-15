@@ -19,10 +19,10 @@ package main
 import (
 	"flag"
 	"log"
-	"oionetdata/collector"
-	"oionetdata/netdata"
-	"oionetdata/openio"
-	"oionetdata/util"
+	"github.com/open-io/openio-netdata-plugins/collector"
+	"github.com/open-io/openio-netdata-plugins/netdata"
+	"github.com/open-io/openio-netdata-plugins/openio"
+	"github.com/open-io/openio-netdata-plugins/util"
 	"os"
 	"strings"
 )

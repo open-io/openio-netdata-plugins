@@ -21,8 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/mock/gomock"
-	"oionetdata/mock_s3iface"
-	"oionetdata/mock_s3manageriface"
+	"github.com/open-io/openio-netdata-plugins/mock_s3iface"
+	"github.com/open-io/openio-netdata-plugins/mock_s3manageriface"
 	"testing"
 )
 
