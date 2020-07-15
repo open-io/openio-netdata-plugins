@@ -19,7 +19,7 @@ package collector
 import (
 	"fmt"
 	"log"
-	"oionetdata/netdata"
+	"github.com/open-io/openio-netdata-plugins/netdata"
 	"strconv"
 	"time"
 )

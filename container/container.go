@@ -17,17 +17,14 @@
 package container
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"oionetdata/netdata"
-	"oionetdata/util"
+	"github.com/open-io/openio-netdata-plugins/netdata"
+	"github.com/open-io/openio-netdata-plugins/util"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
 	"github.com/go-redis/redis"
 )
 
@@ -114,13 +111,8 @@ type bucketInfoStruct struct {
 
 // Collect -- collect container metrics
 func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool, c chan netdata.Metric) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	if bucketdb != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
-		bucketInfoStr, err := scriptBucketInfo.Run(ctx, bucketdb, []string{}, 0).Result()
+		bucketInfoStr, err := scriptBucketInfo.Run(bucketdb, []string{}, 0).Result()
 		if err != nil {
 			return err
 		}
@@ -135,12 +127,12 @@ func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool
 		}
 	}
 
-	accounts, err := scriptGetAccounts.Run(ctx, client, []string{}, 0).Result()
+	accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
 	if err != nil {
 		return err
 	}
 	if f {
-		acctInfo, err := scriptAcctInfo.Run(ctx, client, []string{}, 0).Result()
+		acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
 		if err != nil {
 			return err
 		}
@@ -164,7 +156,7 @@ func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool
 		if acct == "1" {
 			continue
 		}
-		count, err := scriptGetContCount.Run(ctx, client, []string{acct.(string)}, 1).Result()
+		count, err := scriptGetContCount.Run(client, []string{acct.(string)}, 1).Result()
 		if err != nil {
 			return err
 		}
@@ -174,7 +166,7 @@ func Collect(client, bucketdb *redis.Client, ns string, l int64, t int64, f bool
 		if !f {
 			var i int64
 			for i < ct {
-				res, err := scriptListCont.Run(ctx, client, []string{acct.(string)}, t, i, l).Result()
+				res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
 				if err != nil {
 					return err
 				}

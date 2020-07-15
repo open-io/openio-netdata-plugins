@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"testing"
     "time"
-    "oionetdata/netdata"
+    "github.com/open-io/openio-netdata-plugins/netdata"
 	"log"
 )
 

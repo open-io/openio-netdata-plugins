@@ -23,10 +23,10 @@ import (
 	"os"
 	"time"
 
-	"oionetdata/collector"
-	"oionetdata/netdata"
-	"oionetdata/s3roundtrip"
-	"oionetdata/util"
+	"github.com/open-io/openio-netdata-plugins/collector"
+	"github.com/open-io/openio-netdata-plugins/netdata"
+	"github.com/open-io/openio-netdata-plugins/s3roundtrip"
+	"github.com/open-io/openio-netdata-plugins/util"
 )
 
 var requests = []string{"get", "put", "del", "rb", "mb", "ls", "mpu_put", "mpu_get", "mpu_del"}

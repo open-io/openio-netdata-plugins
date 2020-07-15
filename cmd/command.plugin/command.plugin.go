@@ -22,10 +22,10 @@ import (
 	"os"
 	"time"
 
-	"oionetdata/collector"
-	"oionetdata/command"
-	"oionetdata/netdata"
-	"oionetdata/util"
+	"github.com/open-io/openio-netdata-plugins/collector"
+	"github.com/open-io/openio-netdata-plugins/command"
+	"github.com/open-io/openio-netdata-plugins/netdata"
+	"github.com/open-io/openio-netdata-plugins/util"
 )
 
 func main() {

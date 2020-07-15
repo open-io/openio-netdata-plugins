@@ -24,10 +24,10 @@ import (
 	"strings"
 	"time"
 
-	"oionetdata/collector"
-	"oionetdata/netdata"
-	"oionetdata/openio"
-	"oionetdata/zookeeper"
+	"github.com/open-io/openio-netdata-plugins/collector"
+	"github.com/open-io/openio-netdata-plugins/netdata"
+	"github.com/open-io/openio-netdata-plugins/openio"
+	"github.com/open-io/openio-netdata-plugins/zookeeper"
 )
 
 func main() {
