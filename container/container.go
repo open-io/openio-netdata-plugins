@@ -28,15 +28,6 @@ import (
 	"strings"
 )
 
-var scriptGetAccounts = redis.NewScript(`
-    return redis.call("hgetall", "accounts:")
-`)
-
-var scriptGetContCount = redis.NewScript(`
-    local key = "containers:" .. KEYS[1]
-    return redis.call("ZCOUNT", key, 0, 0)
-`)
-
 var scriptListCont = redis.NewScript(`
     local res = {}
     local acct_key = "containers:" .. KEYS[1]
@@ -46,12 +37,13 @@ var scriptListCont = redis.NewScript(`
         local k = cont_pfix .. c;
         local v = redis.call('HGET', k, 'objects')
         if v then
-            v = tonumber(v)
-            local s = tonumber(redis.call('HGET', k, 'bytes'))
-            if v > tonumber(ARGV[1]) then
-                res[c] = {v, s}
+            if tonumber(v) > tonumber(ARGV[1]) then
+                res[c] = {
+									objects = string.format("%d", v),
+									kbytes  = string.format("%d", redis.call('HGET', k, 'bytes')),
+								}
             end;
-        end
+        end;
     end;
     return cjson.encode(res);
 `)
@@ -62,21 +54,25 @@ var scriptBucketInfo = redis.NewScript(`
 	for i, bucket in ipairs(buckets) do
       res[bucket] = {
           account = redis.call("hget", bucket, "account"),
-          objects = tonumber(redis.call("hget", bucket, "objects")),
-          bytes = tonumber(redis.call("hget", bucket, "bytes")),
+          objects = string.format("%d", redis.call("hget", bucket, "objects")),
+          kbytes  = string.format("%d", redis.call("hget", bucket, "bytes") / 1000),
       }
 	end;
-	return cjson.encode(res);`)
+	return cjson.encode(res);
+`)
 
 var scriptAcctInfo = redis.NewScript(`
 	local accts = redis.call("hgetall", "accounts:")
 	local res = {}
-	local index = 0
 	for i, acc in ipairs(accts) do
         if i % 2 == 1 then
-                local acct_key = "account:" .. acc;
-                res[index] = {acc, redis.call('HGET', acct_key, 'bytes'), redis.call("HGET", acct_key, 'objects')}
-                index = index + 1
+					local acct_key = "account:" .. acc;
+					local key = "containers:" .. acc;
+					res[acc] = {
+							objects = string.format("%d", redis.call("HGET", acct_key, 'objects')),
+							kbytes  = string.format("%d", redis.call('HGET', acct_key, 'bytes') / 1000),
+							count   = string.format("%d", redis.call("ZCOUNT", key, 0, 0)),
+					}
         end;
 	end;
 	return cjson.encode(res);
@@ -103,10 +99,11 @@ func RedisAddr(basePath string, ns string) (string, error) {
 	return "", fmt.Errorf("invalid redis conf")
 }
 
-type bucketInfoStruct struct {
+type infoObj struct {
 	Account string `json:"account"`
-	Objects int64  `json:"objects"`
-	Bytes   int64  `json:"bytes"`
+	Objects string `json:"objects"`
+	KBytes  string `json:"kbytes"`
+	Count   string `json:"count"`
 }
 
 // Collect -- collect container metrics
@@ -115,72 +112,46 @@ func Collect(client *redis.Client, ns string, l int64, t int64, f bool, c chan n
 	if err != nil {
 		return err
 	}
-	bucketInfo := map[string]bucketInfoStruct{}
+	bucketInfo := map[string]infoObj{}
 	if err := json.Unmarshal([]byte(bucketInfoStr.(string)), &bucketInfo); err != nil {
 		return err
 	}
 	for name, info := range bucketInfo {
 		bucket := info.Account + "." + strings.Split(name, ":")[1]
-		netdata.Update("account_bucket_kilobytes", bucket, fmt.Sprintf("%d", info.Bytes/1000), c)
-		netdata.Update("account_bucket_objects", bucket, fmt.Sprintf("%d", info.Objects), c)
+		netdata.Update("account_bucket_kilobytes", bucket, info.KBytes, c)
+		netdata.Update("account_bucket_objects", bucket, info.Objects, c)
 	}
 
-	accounts, err := scriptGetAccounts.Run(client, []string{}, 0).Result()
+	acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
 	if err != nil {
 		return err
 	}
-	if f {
-		acctInfo, err := scriptAcctInfo.Run(client, []string{}, 0).Result()
-		if err != nil {
-			return err
-		}
-		acctObj := map[string][]string{}
-		err = json.Unmarshal([]byte(acctInfo.(string)), &acctObj)
-		if err != nil {
-			return err
-		}
-		for _, data := range acctObj {
-			val, err := strconv.Atoi(data[1])
-			if err != nil {
-				return err
-			}
-			netdata.Update("account_bytes", util.AcctID(ns, data[0]), data[1], c)
-			netdata.Update("account_kilobytes", util.AcctID(ns, data[0]), strconv.Itoa(val/1000), c)
-			netdata.Update("account_objects", util.AcctID(ns, data[0]), data[2], c)
-		}
+	acctObj := map[string]infoObj{}
+	if err := json.Unmarshal([]byte(acctInfo.(string)), &acctObj); err != nil {
+		return err
 	}
+	for acc, info := range acctObj {
+		// Note(VDO): the metric account_bytes can result in false results and has been deprecated
+		netdata.Update("account_kilobytes", util.AcctID(ns, acc), info.KBytes, c)
+		netdata.Update("account_objects", util.AcctID(ns, acc), info.Objects, c)
+		netdata.Update("container_count", util.AcctID(ns, acc), info.Count, c)
 
-	for _, acct := range accounts.([]interface{}) {
-		if acct == "1" {
-			continue
-		}
-		count, err := scriptGetContCount.Run(client, []string{acct.(string)}, 1).Result()
-		if err != nil {
-			return err
-		}
-		ct := count.(int64)
-		cts := strconv.FormatInt(ct, 10)
-		netdata.Update("container_count", util.AcctID(ns, acct.(string)), cts, c)
-		if !f {
+		if count, err := strconv.ParseInt(info.Count, 10, 64); !f && err == nil {
 			var i int64
-			for i < ct {
-				res, err := scriptListCont.Run(client, []string{acct.(string)}, t, i, l).Result()
+			for i > int64(-1) && i < count {
+				res, err := scriptListCont.Run(client, []string{acc}, t, i, l).Result()
 				if err != nil {
 					return err
 				}
-				contObj := map[string][]int{}
-				err = json.Unmarshal([]byte(res.(string)), &contObj)
-				if err != nil {
+				contObj := map[string]infoObj{}
+				if err := json.Unmarshal([]byte(res.(string)), &contObj); err != nil {
 					return err
 				}
-				for cont, values := range contObj {
-					netdata.Update("container_objects", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[0]), c)
-					netdata.Update("container_bytes", util.AcctID(ns, acct.(string), cont), strconv.Itoa(values[1]), c)
+				for cont, data := range contObj {
+					netdata.Update("container_objects", util.AcctID(ns, acc, cont), data.Objects, c)
+					netdata.Update("container_bytes", util.AcctID(ns, acc, cont), data.KBytes, c)
 				}
 				i += l
-				if l == -1 {
-					i = ct
-				}
 			}
 		}
 	}
